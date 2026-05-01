@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FilterItemWidget</class>
+ <widget class="QWidget" name="FilterItemWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>470</width>
+    <height>128</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_outer">
+   <property name="spacing"><number>0</number></property>
+   <property name="leftMargin"><number>0</number></property>
+   <property name="topMargin"><number>0</number></property>
+   <property name="rightMargin"><number>0</number></property>
+   <property name="bottomMargin"><number>0</number></property>
+   <item>
+    <widget class="QFrame" name="frame">
+     <property name="frameShape"><enum>QFrame::StyledPanel</enum></property>
+     <property name="frameShadow"><enum>QFrame::Raised</enum></property>
+     <property name="styleSheet">
+      <string>QFrame#frame { background: #ffffff; border: 1px solid #d6dce5; border-radius: 6px; }</string>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_main">
+      <property name="spacing"><number>0</number></property>
+      <property name="leftMargin"><number>0</number></property>
+      <property name="topMargin"><number>0</number></property>
+      <property name="rightMargin"><number>8</number></property>
+      <property name="bottomMargin"><number>0</number></property>
+      <item>
+       <widget class="QFrame" name="condition_frame">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size><width>54</width><height>0</height></size>
+        </property>
+        <property name="maximumSize">
+         <size><width>54</width><height>16777215</height></size>
+        </property>
+        <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+        <property name="styleSheet">
+         <string>background-color: #446a8f;</string>
+        </property>
+        <layout class="QVBoxLayout" name="condition_layout">
+         <property name="spacing"><number>0</number></property>
+         <property name="leftMargin"><number>4</number></property>
+         <property name="topMargin"><number>4</number></property>
+         <property name="rightMargin"><number>4</number></property>
+         <property name="bottomMargin"><number>4</number></property>
+         <item>
+          <widget class="QLabel" name="condition_label">
+           <property name="text"><string>AND</string></property>
+           <property name="alignment"><set>Qt::AlignCenter</set></property>
+           <property name="styleSheet">
+            <string>color: white; font-size: 9px; font-weight: bold; background: transparent;</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_content">
+        <property name="leftMargin"><number>10</number></property>
+        <property name="topMargin"><number>7</number></property>
+        <property name="rightMargin"><number>0</number></property>
+        <property name="bottomMargin"><number>7</number></property>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_title">
+          <property name="spacing"><number>6</number></property>
+          <item>
+           <widget class="QLabel" name="key_label">
+            <property name="font">
+             <font><weight>75</weight><bold>true</bold></font>
+            </property>
+            <property name="text"><string>KEY</string></property>
+            <property name="styleSheet">
+             <string>font-size: 10px;</string>
+            </property>
+            <property name="textInteractionFlags">
+             <set>Qt::TextSelectableByMouse|Qt::TextSelectableByKeyboard</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="operator_label">
+            <property name="text"><string>=</string></property>
+            <property name="alignment"><set>Qt::AlignCenter</set></property>
+            <property name="styleSheet">
+             <string>color: #4d5968; font-size: 10px; font-weight: bold;</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation"><enum>Qt::Horizontal</enum></property>
+            <property name="sizeHint" stdset="0">
+             <size><width>40</width><height>20</height></size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="load_geometry_btn">
+            <property name="minimumSize">
+             <size><width>0</width><height>24</height></size>
+            </property>
+            <property name="maximumSize">
+             <size><width>120</width><height>24</height></size>
+            </property>
+            <property name="text">
+             <string>Load to map</string>
+            </property>
+            <property name="toolTip">
+             <string>Load geometry filter to map</string>
+            </property>
+            <property name="styleSheet">
+             <string>QPushButton { font-size: 10px; padding: 2px 6px; }</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QTextEdit" name="value_edit">
+          <property name="readOnly"><bool>true</bool></property>
+          <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+          <property name="lineWrapMode"><enum>QTextEdit::WidgetWidth</enum></property>
+          <property name="verticalScrollBarPolicy"><enum>Qt::ScrollBarAsNeeded</enum></property>
+          <property name="horizontalScrollBarPolicy"><enum>Qt::ScrollBarAlwaysOff</enum></property>
+          <property name="minimumSize">
+           <size><width>0</width><height>38</height></size>
+          </property>
+          <property name="maximumSize">
+           <size><width>16777215</width><height>68</height></size>
+          </property>
+          <property name="styleSheet">
+           <string>QTextEdit { background: #f6f8fb; color: #202a35; border-radius: 4px; padding: 4px; font-size: 10px; }</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
