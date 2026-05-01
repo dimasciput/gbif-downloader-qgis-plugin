@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DownloadDetailDialog</class>
+ <widget class="QDialog" name="DownloadDetailDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>520</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Download Details</string>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_main">
+   <item>
+    <widget class="QScrollArea" name="scrollArea">
+     <property name="widgetResizable"><bool>true</bool></property>
+     <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+     <widget class="QWidget" name="scrollContents">
+      <property name="geometry">
+       <rect><x>0</x><y>0</y><width>500</width><height>560</height></rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_scroll">
+       <property name="leftMargin"><number>4</number></property>
+       <property name="topMargin"><number>4</number></property>
+       <property name="rightMargin"><number>4</number></property>
+       <property name="bottomMargin"><number>4</number></property>
+
+       <!-- Overview -->
+       <item>
+        <widget class="QGroupBox" name="overview_group">
+         <property name="title"><string>Overview</string></property>
+         <layout class="QFormLayout" name="formLayout_overview">
+          <item row="0" column="0">
+           <widget class="QLabel"><property name="text"><string>Key:</string></property></widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLabel" name="key_label">
+            <property name="text"><string>—</string></property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+            </property>
+            <property name="openExternalLinks"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel"><property name="text"><string>Status:</string></property></widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLabel" name="status_label">
+            <property name="text"><string>—</string></property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel"><property name="text"><string>Format:</string></property></widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLabel" name="format_label">
+            <property name="text"><string>—</string></property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel"><property name="text"><string>Created:</string></property></widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLabel" name="created_label">
+            <property name="text"><string>—</string></property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel"><property name="text"><string>Records:</string></property></widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QLabel" name="records_label">
+            <property name="text"><string>—</string></property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel"><property name="text"><string>Datasets:</string></property></widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QLabel" name="datasets_label">
+            <property name="text"><string>—</string></property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel"><property name="text"><string>File size:</string></property></widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QLabel" name="size_label">
+            <property name="text"><string>—</string></property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+
+       <!-- Citation -->
+       <item>
+        <widget class="QGroupBox" name="citation_group">
+         <property name="title"><string>Citation</string></property>
+         <layout class="QFormLayout" name="formLayout_citation">
+          <item row="0" column="0">
+           <widget class="QLabel"><property name="text"><string>DOI:</string></property></widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLabel" name="doi_label">
+            <property name="text"><string>—</string></property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+            </property>
+            <property name="openExternalLinks"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel"><property name="text"><string>License:</string></property></widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLabel" name="license_label">
+            <property name="text"><string>—</string></property>
+            <property name="wordWrap"><bool>true</bool></property>
+            <property name="textInteractionFlags">
+             <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+            </property>
+            <property name="openExternalLinks"><bool>true</bool></property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+
+       <!-- Filters -->
+       <item>
+        <widget class="QGroupBox" name="filters_group">
+         <property name="title"><string>Filters Applied</string></property>
+         <layout class="QVBoxLayout" name="verticalLayout_filters">
+          <item>
+           <widget class="QPlainTextEdit" name="predicate_edit">
+            <property name="readOnly"><bool>true</bool></property>
+            <property name="lineWrapMode">
+             <enum>QPlainTextEdit::NoWrap</enum>
+            </property>
+            <property name="minimumSize">
+             <size><width>0</width><height>120</height></size>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation"><enum>Qt::Vertical</enum></property>
+         <property name="sizeHint" stdset="0">
+          <size><width>20</width><height>10</height></size>
+         </property>
+        </spacer>
+       </item>
+
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="button_box">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

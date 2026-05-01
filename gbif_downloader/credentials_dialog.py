@@ -1,59 +1,27 @@
+import os
+
+from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtWidgets import (
-    QDialog,
-    QDialogButtonBox,
-    QFormLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QVBoxLayout,
+from qgis.PyQt.QtWidgets import QDialog
+
+FORM_CLASS, _ = uic.loadUiType(
+    os.path.join(os.path.dirname(__file__), "gui", "credentials_dialog.ui")
 )
 
 
-class CredentialsDialog(QDialog):
+class CredentialsDialog(QDialog, FORM_CLASS):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("GBIF Credentials")
-        self.setMinimumWidth(340)
+        self.setupUi(self)
+
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-
-        layout = QVBoxLayout(self)
-
-        info = QLabel(
-            "Enter your <a href='https://www.gbif.org/user/profile'>GBIF account</a> "
-            "credentials. These are stored in the QGIS authentication manager (encrypted)."
-        )
-        info.setOpenExternalLinks(True)
-        info.setWordWrap(True)
-        layout.addWidget(info)
-
-        form = QFormLayout()
-        self.username_edit = QLineEdit()
-        self.username_edit.setPlaceholderText("GBIF username")
-        form.addRow("Username:", self.username_edit)
-
-        self.password_edit = QLineEdit()
-        self.password_edit.setEchoMode(QLineEdit.Password)
-        self.password_edit.setPlaceholderText("GBIF password")
-        form.addRow("Password:", self.password_edit)
-        layout.addLayout(form)
-
-        self.test_btn = QPushButton("Test Connection")
-        self.test_btn.clicked.connect(self._test_connection)
-        layout.addWidget(self.test_btn)
-
-        self.result_label = QLabel("")
-        self.result_label.setAlignment(Qt.AlignCenter)
-        self.result_label.setWordWrap(True)
         self.result_label.setTextInteractionFlags(
             Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
         )
-        layout.addWidget(self.result_label)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        buttons.accepted.connect(self._save)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        self.test_btn.clicked.connect(self._test_connection)
+        self.button_box.accepted.connect(self._save)
+        self.button_box.rejected.connect(self.reject)
 
         self._load()
 

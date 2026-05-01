@@ -1,4 +1,5 @@
 import datetime
+import os
 
 from qgis.core import (
     QgsCoordinateReferenceSystem,
@@ -9,23 +10,16 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.gui import QgsMapTool, QgsRubberBand
+from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, QThread, pyqtSignal
 from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import (
-    QCheckBox,
-    QComboBox,
-    QFormLayout,
-    QGroupBox,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QSpinBox,
-    QVBoxLayout,
-    QWidget,
-)
+from qgis.PyQt.QtWidgets import QWidget
 
 _WGS84 = QgsCoordinateReferenceSystem("EPSG:4326")
+
+FORM_CLASS, _ = uic.loadUiType(
+    os.path.join(os.path.dirname(__file__), "gui", "action_tab.ui")
+)
 
 
 def _geom_to_wkt(geom: QgsGeometry, canvas_crs) -> str:
@@ -146,50 +140,37 @@ class _SubmitWorker(QThread):
             self.error.emit(str(exc))
 
 
-class ActionTab(QWidget):
+class ActionTab(QWidget, FORM_CLASS):
     download_submitted = pyqtSignal(str)  # download key
 
     def __init__(self, iface, parent=None):
         super().__init__(parent)
+        self.setupUi(self)
+
         self._iface = iface
         self._polygon_tool = None
         self._prev_tool = None
         self._rubber_band = None
         self._extent_wkt = ""
+        self._worker = None
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
+        self.status_label.setTextInteractionFlags(
+            Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
+        )
 
-        params_group = QGroupBox("Query Parameters")
-        form = QFormLayout(params_group)
-
-        self.species_edit = QLineEdit()
-        self.species_edit.setPlaceholderText("e.g. Panthera leo  (leave blank for all)")
-        form.addRow("Species:", self.species_edit)
-
-        self.country_combo = QComboBox()
+        # Populate country combo
         self.country_combo.addItem("(any)", "")
         for code in ["AU", "BR", "CA", "DE", "ID", "IN", "MX", "US", "ZA"]:
             self.country_combo.addItem(code, code)
-        form.addRow("Country:", self.country_combo)
 
+        # Set year range with current year
         current_year = datetime.date.today().year
-        year_row = QWidget()
-        year_layout = QHBoxLayout(year_row)
-        year_layout.setContentsMargins(0, 0, 0, 0)
-        self.year_from = QSpinBox()
         self.year_from.setRange(1750, current_year)
         self.year_from.setValue(current_year - 5)
-        self.year_to = QSpinBox()
         self.year_to.setRange(1750, current_year)
         self.year_to.setValue(current_year)
-        year_layout.addWidget(self.year_from)
-        year_layout.addWidget(QLabel("to"))
-        year_layout.addWidget(self.year_to)
-        year_layout.addStretch()
-        form.addRow("Year range:", year_row)
 
-        self.basis_combo = QComboBox()
+        # Populate basis combo
         self.basis_combo.addItem("(any)", "")
         for v in [
             "HUMAN_OBSERVATION",
@@ -199,52 +180,15 @@ class ActionTab(QWidget):
             "OCCURRENCE",
         ]:
             self.basis_combo.addItem(v, v)
-        form.addRow("Basis of record:", self.basis_combo)
 
-        self.format_combo = QComboBox()
+        # Populate format combo
         self.format_combo.addItem("Simple CSV", "SIMPLE_CSV")
         self.format_combo.addItem("Darwin Core Archive", "DWCA")
-        form.addRow("Download format:", self.format_combo)
 
-        # Polygon row
-        polygon_row = QWidget()
-        polygon_layout = QHBoxLayout(polygon_row)
-        polygon_layout.setContentsMargins(0, 0, 0, 0)
-        self.draw_btn = QPushButton("Draw Polygon")
-        self.draw_btn.setToolTip(
-            "Click to add vertices, right-click to close the polygon"
-        )
+        # Connect signals
         self.draw_btn.clicked.connect(self._toggle_draw)
-        self.clear_polygon_btn = QPushButton("Clear")
-        self.clear_polygon_btn.setEnabled(False)
         self.clear_polygon_btn.clicked.connect(self._clear_polygon)
-        polygon_layout.addWidget(self.draw_btn)
-        polygon_layout.addWidget(self.clear_polygon_btn)
-        polygon_layout.addStretch()
-        form.addRow("Polygon:", polygon_row)
-
-        layout.addWidget(params_group)
-
-        bottom_row = QHBoxLayout()
-        self.notify_check = QCheckBox("Send email notification")
-        self.notify_check.setChecked(True)
-        bottom_row.addWidget(self.notify_check)
-        bottom_row.addStretch()
-        self.submit_btn = QPushButton("Submit Download")
         self.submit_btn.clicked.connect(self._submit)
-        bottom_row.addWidget(self.submit_btn)
-        layout.addLayout(bottom_row)
-
-        self.status_label = QLabel("")
-        self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setWordWrap(True)
-        self.status_label.setTextInteractionFlags(
-            Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
-        )
-        layout.addWidget(self.status_label)
-
-        layout.addStretch()
-        self._worker = None
 
     # -- Polygon drawing --------------------------------------------------
 

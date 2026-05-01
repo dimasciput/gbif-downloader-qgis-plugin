@@ -2,36 +2,36 @@ import os
 import tempfile
 import zipfile
 
-from qgis.core import QgsProject, QgsVectorLayer
-from qgis.PyQt.QtCore import Qt, QThread, QTimer, QUrl, pyqtSignal
-from qgis.PyQt.QtWidgets import (
-    QFileDialog,
-    QHBoxLayout,
-    QHeaderView,
-    QLabel,
-    QPushButton,
-    QTableWidget,
-    QTableWidgetItem,
-    QVBoxLayout,
-    QWidget,
+from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
+from qgis.PyQt import uic
+from qgis.PyQt.QtCore import Qt, QSize, QThread, QTimer, QUrl, pyqtSignal
+from qgis.PyQt.QtWidgets import QFileDialog, QListWidgetItem, QWidget
+
+FORM_CLASS, _ = uic.loadUiType(
+    os.path.join(os.path.dirname(__file__), "gui", "downloads_tab.ui")
+)
+ITEM_FORM_CLASS, _ = uic.loadUiType(
+    os.path.join(os.path.dirname(__file__), "gui", "download_item.ui")
+)
+DETAIL_FORM_CLASS, DETAIL_BASE_CLASS = uic.loadUiType(
+    os.path.join(os.path.dirname(__file__), "gui", "download_detail_dialog.ui")
 )
 
 _POLL_MS = 30_000
 _PENDING = {"PREPARING", "RUNNING", "SUBMITTED"}
-_COLOURS = {
-    "SUCCEEDED": Qt.darkGreen,
-    "RUNNING":   Qt.darkBlue,
-    "PREPARING": Qt.darkCyan,
-    "SUBMITTED": Qt.darkCyan,
-    "FAILED":    Qt.red,
-    "KILLED":    Qt.darkRed,
-    "CANCELLED": Qt.gray,
+_STATUS_CSS = {
+    "SUCCEEDED": "#2d6a2d",
+    "RUNNING":   "#1a3a6b",
+    "PREPARING": "#1a7070",
+    "SUBMITTED": "#1a7070",
+    "FAILED":    "#b22222",
+    "KILLED":    "#6b1a1a",
+    "CANCELLED": "#888888",
 }
 _TSV_SKIP = {"citation", "rights", "metadata", "multimedia", "verbatim"}
 
 
 def _find_tsv(zf: zipfile.ZipFile) -> str:
-    """Return the name of the main data file inside the ZIP."""
     candidates = [
         n for n in zf.namelist()
         if n.lower().endswith((".csv", ".tsv", ".txt"))
@@ -83,7 +83,7 @@ class _DownloadWorker(QThread):
       "map"        – download ZIP, extract TSV to dest (no duckdb needed)
       "geoparquet" – download ZIP, convert to GeoParquet via duckdb, save to dest
     """
-    progress = pyqtSignal(int)   # 0-100
+    progress = pyqtSignal(int)
     finished = pyqtSignal(str, str)  # (saved path, fmt)
     error    = pyqtSignal(str)
 
@@ -94,7 +94,8 @@ class _DownloadWorker(QThread):
         self._fmt  = fmt
 
     def run(self):
-        import urllib.request, shutil
+        import urllib.request
+        import shutil
         tmp_zip = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
         tmp_path = tmp_zip.name
         tmp_zip.close()
@@ -176,45 +177,190 @@ class _DownloadWorker(QThread):
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _fmt_size(size_bytes) -> str:
+    if not size_bytes:
+        return "—"
+    for unit in ("B", "KB", "MB", "GB"):
+        if size_bytes < 1024:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= 1024
+    return f"{size_bytes:.1f} TB"
+
+
+def _predicate_to_text(pred: dict) -> str:
+    if not pred:
+        return "(no filter)"
+    _OP = {
+        "equals": "=",
+        "greaterThan": ">",
+        "lessThan": "<",
+        "greaterThanOrEquals": ">=",
+        "lessThanOrEquals": "<=",
+        "like": "like",
+    }
+
+    def _render(p, indent=0):
+        pad = "  " * indent
+        t = p.get("type", "")
+        if t == "and":
+            return "\n".join(_render(c, indent) for c in p.get("predicates", []))
+        if t == "or":
+            lines = [_render(c, indent + 1) for c in p.get("predicates", [])]
+            return f"{pad}OR:\n" + "\n".join(lines)
+        if t == "not":
+            return f"{pad}NOT {_render(p.get('predicate', {}), indent)}"
+        if t == "within":
+            geom = p.get("geometry", "")
+            if len(geom) > 80:
+                geom = geom[:77] + "…"
+            return f"{pad}GEOMETRY within {geom}"
+        if t in _OP:
+            return f"{pad}{p.get('key', '?')} {_OP[t]} {p.get('value', '?')}"
+        if t in ("isNull", "isNotNull"):
+            suffix = "IS NULL" if t == "isNull" else "IS NOT NULL"
+            return f"{pad}{p.get('parameter', '?')} {suffix}"
+        return f"{pad}{p}"
+
+    return _render(pred)
+
+
+# ---------------------------------------------------------------------------
+# Detail dialog
+# ---------------------------------------------------------------------------
+
+class _DetailDialog(DETAIL_BASE_CLASS, DETAIL_FORM_CLASS):
+    def __init__(self, data: dict, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.button_box.rejected.connect(self.reject)
+        self._populate(data)
+
+    def _populate(self, data: dict):
+        key = data.get("key", "")
+        self.setWindowTitle(f"Download Details — {key}")
+
+        self.key_label.setText(
+            f'<a href="https://www.gbif.org/occurrence/download/{key}">{key}</a>'
+        )
+        self.status_label.setText(data.get("status", "—"))
+        self.format_label.setText(
+            (data.get("request") or {}).get("format", "—")
+        )
+        self.created_label.setText((data.get("created") or "—")[:19].replace("T", " "))
+
+        total = data.get("totalRecords")
+        self.records_label.setText(f"{int(total):,}" if total is not None else "—")
+
+        datasets = data.get("numberDatasets")
+        self.datasets_label.setText(f"{int(datasets):,}" if datasets is not None else "—")
+
+        self.size_label.setText(_fmt_size(data.get("size")))
+
+        doi = data.get("doi", "")
+        if doi:
+            url = doi if doi.startswith("http") else f"https://doi.org/{doi}"
+            self.doi_label.setText(f'<a href="{url}">{doi}</a>')
+        else:
+            self.doi_label.setText("—")
+
+        license_url = data.get("license", "")
+        if license_url:
+            self.license_label.setText(f'<a href="{license_url}">{license_url}</a>')
+        else:
+            self.license_label.setText("—")
+
+        predicate = (data.get("request") or {}).get("predicate")
+        self.predicate_edit.setPlainText(
+            _predicate_to_text(predicate) if predicate else "(no filter)"
+        )
+
+class _DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
+    def __init__(self, data: dict, tab: "DownloadsTab"):
+        super().__init__()
+        self.setupUi(self)
+        self._key = data.get("key", "")
+        self._tab = tab
+        self._download_link = ""
+        self._status = ""
+        self._data = {}
+
+        self.key_label.setTextInteractionFlags(
+            Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard | Qt.LinksAccessibleByMouse
+        )
+        self.key_label.setOpenExternalLinks(True)
+
+        self.load_btn.setIcon(QgsApplication.getThemeIcon("/mActionAddOgrLayer.svg"))
+        self.zip_btn.setIcon(QgsApplication.getThemeIcon("/mActionFileSave.svg"))
+        self.details_btn.setIcon(QgsApplication.getThemeIcon("/mActionIdentify.svg"))
+
+        self.load_btn.clicked.connect(
+            lambda: tab._save(self._download_link, "map", self._key)
+        )
+        self.zip_btn.clicked.connect(
+            lambda: tab._save(self._download_link, "zip", self._key)
+        )
+        self.details_btn.clicked.connect(self._open_details)
+
+        self.update_data(data)
+
+    def status(self) -> str:
+        return self._status
+
+    def _open_details(self):
+        dlg = _DetailDialog(self._data, parent=self)
+        dlg.exec()
+
+    def update_data(self, data: dict):
+        self._data = data
+        self._status = data.get("status", "")
+        created = (data.get("created") or "")[:10]
+        total = data.get("totalRecords")
+        self._download_link = data.get("downloadLink", "")
+
+        self.key_label.setText(
+            f'<a href="https://www.gbif.org/occurrence/download/{self._key}">{self._key}</a>'
+        )
+
+        parts = []
+        if created:
+            parts.append(f"Created: {created}")
+        if total is not None:
+            parts.append(f"{int(total):,} records")
+        if not parts and self._status:
+            parts.append(self._status)
+        self.info_label.setText(" · ".join(parts))
+
+        color = _STATUS_CSS.get(self._status, "#aaaaaa")
+        self.status_frame.setStyleSheet(f"background-color: {color};")
+        self.status_label.setText(self._status)
+
+        has_link = bool(self._download_link) and self._status == "SUCCEEDED"
+        self.load_btn.setVisible(has_link)
+        self.zip_btn.setVisible(has_link)
+
+
+# ---------------------------------------------------------------------------
 # Tab widget
 # ---------------------------------------------------------------------------
 
-class DownloadsTab(QWidget):
-    COLUMNS = ["Key", "Status", "Created", "Records", "Actions"]
-
+class DownloadsTab(QWidget, FORM_CLASS):
     def __init__(self, parent=None):
         super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
+        self.setupUi(self)
 
-        top_row = QHBoxLayout()
-        self.status_label = QLabel("Not connected")
-        self.status_label.setStyleSheet("color: grey;")
         self.status_label.setTextInteractionFlags(
             Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
         )
-        top_row.addWidget(self.status_label)
-        top_row.addStretch()
-        self.refresh_btn = QPushButton("Refresh")
         self.refresh_btn.clicked.connect(self.refresh)
-        top_row.addWidget(self.refresh_btn)
-        layout.addLayout(top_row)
-
-        self.table = QTableWidget(0, len(self.COLUMNS))
-        self.table.setHorizontalHeaderLabels(self.COLUMNS)
-        for col in range(4):
-            self.table.horizontalHeader().setSectionResizeMode(col, QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table.setAlternatingRowColors(True)
-        self.table.verticalHeader().setDefaultSectionSize(30)
-        layout.addWidget(self.table)
 
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(_POLL_MS)
         self._poll_timer.timeout.connect(self._poll_pending)
 
+        self._items: dict[str, tuple[QListWidgetItem, _DownloadItemWidget]] = {}
         self._fetch_worker     = None
         self._poll_worker      = None
         self._download_workers = []
@@ -222,14 +368,8 @@ class DownloadsTab(QWidget):
     # -- Public API -------------------------------------------------------
 
     def add_pending(self, key: str):
-        self.table.insertRow(0)
-        self.table.setItem(0, 0, QTableWidgetItem(key))
-        si = QTableWidgetItem("SUBMITTED")
-        self._colour(si)
-        self.table.setItem(0, 1, si)
-        self.table.setItem(0, 2, QTableWidgetItem(""))
-        self.table.setItem(0, 3, QTableWidgetItem(""))
-        self.table.setCellWidget(0, 4, QWidget())
+        data = {"key": key, "status": "SUBMITTED", "created": "", "totalRecords": None, "downloadLink": ""}
+        self._insert_item(data, at_top=True)
         self.status_label.setText(f"Queued: {key}")
         self.status_label.setStyleSheet("color: green;")
         self._poll_pending()
@@ -249,12 +389,7 @@ class DownloadsTab(QWidget):
     def _poll_pending(self):
         if self._poll_worker and self._poll_worker.isRunning():
             return
-        keys = [
-            self.table.item(r, 0).text()
-            for r in range(self.table.rowCount())
-            if self.table.item(r, 1) and self.table.item(r, 1).text() in _PENDING
-            and self.table.item(r, 0)
-        ]
+        keys = [k for k, (_, w) in self._items.items() if w.status() in _PENDING]
         if not keys:
             self._poll_timer.stop()
             return
@@ -263,71 +398,47 @@ class DownloadsTab(QWidget):
         self._poll_worker.start()
 
     def _on_poll_result(self, key: str, data: dict):
-        for row in range(self.table.rowCount()):
-            item = self.table.item(row, 0)
-            if item and item.text() == key:
-                self._fill_row(row, data)
-                break
+        if key not in self._items:
+            return
+        list_item, widget = self._items[key]
+        widget.update_data(data)
+        list_item.setSizeHint(widget.sizeHint())
 
-    # -- Table helpers ----------------------------------------------------
+    # -- List helpers -----------------------------------------------------
+
+    def _insert_item(self, data: dict, at_top: bool = False):
+        key = data.get("key", "")
+        if key in self._items:
+            _, widget = self._items[key]
+            widget.update_data(data)
+            return
+        widget = _DownloadItemWidget(data, self)
+        list_item = QListWidgetItem()
+        list_item.setSizeHint(QSize(0, 110))
+        if at_top:
+            self.list_widget.insertItem(0, list_item)
+        else:
+            self.list_widget.addItem(list_item)
+        self.list_widget.setItemWidget(list_item, widget)
+        self._items[key] = (list_item, widget)
 
     def _on_fetched(self, downloads: list):
         self.refresh_btn.setEnabled(True)
-        self.table.setRowCount(0)
+        self.list_widget.clear()
+        self._items.clear()
         for dl in downloads:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-            self._fill_row(row, dl)
+            self._insert_item(dl)
         count = len(downloads)
         self.status_label.setText(f"{count} download(s)")
         self.status_label.setStyleSheet("color: green;" if count else "color: grey;")
-        if any(
-            self.table.item(r, 1) and self.table.item(r, 1).text() in _PENDING
-            for r in range(self.table.rowCount())
-        ):
+        if any(w.status() in _PENDING for _, (_, w) in self._items.items()):
             self._poll_timer.start()
-
-    def _fill_row(self, row: int, data: dict):
-        key           = data.get("key", "")
-        status        = data.get("status", "")
-        created       = (data.get("created") or "")[:10]
-        total         = str(data.get("totalRecords") or "")
-        download_link = data.get("downloadLink", "")
-
-        def _set(col, text):
-            item = self.table.item(row, col)
-            if item:
-                item.setText(text)
-            else:
-                self.table.setItem(row, col, QTableWidgetItem(text))
-
-        _set(0, key)
-        _set(2, created)
-        _set(3, total)
-
-        si = self.table.item(row, 1)
-        if si:
-            si.setText(status)
-        else:
-            si = QTableWidgetItem(status)
-            self.table.setItem(row, 1, si)
-        self._colour(si)
-
-        if status == "SUCCEEDED" and download_link:
-            if not isinstance(self.table.cellWidget(row, 4), _ActionsWidget):
-                self.table.setCellWidget(row, 4, _ActionsWidget(download_link, key, self))
-        elif not self.table.cellWidget(row, 4):
-            self.table.setCellWidget(row, 4, QWidget())
-
-    def _colour(self, item: QTableWidgetItem):
-        item.setForeground(_COLOURS.get(item.text(), Qt.black))
 
     # -- Download ---------------------------------------------------------
 
     def _save(self, url: str, fmt: str, key: str = ""):
         if fmt == "map":
-            name = key or "gbif_download"
-            dest = os.path.join(tempfile.gettempdir(), f"{name}.tsv")
+            dest = os.path.join(tempfile.gettempdir(), f"{key or 'gbif_download'}.tsv")
         elif fmt == "zip":
             dest, _ = QFileDialog.getSaveFileName(
                 self, "Save ZIP", "", "ZIP files (*.zip);;All files (*)"
@@ -392,31 +503,3 @@ class DownloadsTab(QWidget):
         self.refresh_btn.setEnabled(True)
         self.status_label.setText(f"Error: {message}")
         self.status_label.setStyleSheet("color: red;")
-
-
-class _ActionsWidget(QWidget):
-    def __init__(self, download_link: str, key: str, tab: DownloadsTab):
-        super().__init__()
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(4, 2, 4, 2)
-        layout.setSpacing(4)
-
-        btn_map = QPushButton("Load to Map")
-        btn_map.setFixedHeight(22)
-        btn_map.setToolTip("Download and add as a QGIS layer (no duckdb required)")
-        btn_map.clicked.connect(lambda: tab._save(download_link, fmt="map", key=key))
-        layout.addWidget(btn_map)
-
-        btn_zip = QPushButton("ZIP")
-        btn_zip.setFixedHeight(22)
-        btn_zip.setToolTip("Save raw ZIP file")
-        btn_zip.clicked.connect(lambda: tab._save(download_link, fmt="zip", key=key))
-        layout.addWidget(btn_zip)
-
-        btn_parquet = QPushButton("GeoParquet ⚗")
-        btn_parquet.setFixedHeight(22)
-        btn_parquet.setToolTip("Convert to GeoParquet via DuckDB and add as layer (requires duckdb)")
-        btn_parquet.clicked.connect(lambda: tab._save(download_link, fmt="geoparquet", key=key))
-        layout.addWidget(btn_parquet)
-
-        layout.addStretch()
