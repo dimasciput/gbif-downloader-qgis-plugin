@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import json
 import os
 import pathlib
@@ -15,12 +16,14 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.PyQt import uic
-from qgis.PyQt.QtCore import Qt, QRect, QSize, QThread, QTimer, QUrl, pyqtSignal
+from qgis.PyQt.QtCore import Qt, QDate, QRect, QSize, QThread, QTimer, QUrl, pyqtSignal
 from qgis.PyQt.QtGui import QPainter
 from qgis.PyQt.QtWidgets import (
+    QAction,
     QFileDialog,
     QLabel,
     QListWidgetItem,
+    QMenu,
     QWidget,
 )
 
@@ -47,8 +50,15 @@ _STATUS_CSS = {
     "FAILED":    "#b22222",
     "KILLED":    "#6b1a1a",
     "CANCELLED": "#888888",
+    "SUSPENDED": "#735c0f",
+    "FILE_ERASED": "#5f6368",
 }
 _TSV_SKIP = {"citation", "rights", "metadata", "multimedia", "verbatim"}
+_STATUSES = [
+    "PREPARING", "RUNNING", "SUCCEEDED",
+    "CANCELLED", "KILLED", "FAILED",
+    "SUSPENDED", "FILE_ERASED",
+]
 
 
 def _find_tsv(zf: zipfile.ZipFile) -> str:
@@ -95,21 +105,82 @@ def _load_all_cached() -> list[dict]:
     return results
 
 
-def _sync_cache(remote_keys: set) -> None:
-    """Remove cached entries whose keys are no longer in the remote list."""
+def _filter_cache_key(statuses: list | None = None, from_date: str = "") -> str:
+    payload = json.dumps(
+        {"statuses": sorted(statuses or []), "from": from_date or ""},
+        sort_keys=True,
+    )
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:12]
+
+
+def _save_page_cache(
+    offset: int,
+    limit: int,
+    count: int,
+    keys: list,
+    statuses: list | None = None,
+    from_date: str = "",
+) -> None:
+    page_dir = _cache_dir() / "_pages"
+    page_dir.mkdir(exist_ok=True)
+    path = page_dir / f"{_filter_cache_key(statuses, from_date)}_{offset}_{limit}.json"
+    path.write_text(
+        json.dumps(
+            {
+                "count": count,
+                "offset": offset,
+                "limit": limit,
+                "statuses": statuses or [],
+                "from": from_date,
+                "keys": keys,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _load_page_cache(
+    offset: int,
+    limit: int,
+    statuses: list | None = None,
+    from_date: str = "",
+) -> dict | None:
+    path = _cache_dir() / "_pages" / f"{_filter_cache_key(statuses, from_date)}_{offset}_{limit}.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _load_cached_keys(keys: list) -> list[dict]:
+    results = []
     cache = _cache_dir()
-    for key_dir in cache.iterdir():
-        if key_dir.is_dir() and key_dir.name not in remote_keys:
-            shutil.rmtree(key_dir, ignore_errors=True)
+    for key in keys:
+        detail = cache / key / "detail.json"
+        if detail.exists():
+            try:
+                results.append(json.loads(detail.read_text(encoding="utf-8")))
+            except Exception:
+                pass
+    return results
 
 
 # ---------------------------------------------------------------------------
 # Background workers
 # ---------------------------------------------------------------------------
 
-class _FetchAllWorker(QThread):
-    finished = pyqtSignal(list)
+class _FetchPageWorker(QThread):
+    finished = pyqtSignal(list, int, int, int)  # results, total, offset, limit
     error    = pyqtSignal(str)
+
+    def __init__(self, offset: int, limit: int, statuses: list, from_date: str):
+        super().__init__()
+        self._offset    = offset
+        self._limit     = limit
+        self._statuses  = statuses
+        self._from_date = from_date
 
     def run(self):
         from .gbif_api import get_credentials, list_downloads
@@ -118,7 +189,17 @@ class _FetchAllWorker(QThread):
             self.error.emit("No GBIF credentials configured. Use the dropdown → Configure GBIF Credentials.")
             return
         try:
-            self.finished.emit(list_downloads(username, password))
+            data = list_downloads(
+                username, password,
+                limit=self._limit, offset=self._offset,
+                statuses=self._statuses, from_date=self._from_date,
+            )
+            self.finished.emit(
+                data.get("results", []),
+                data.get("count", 0),
+                self._offset,
+                self._limit,
+            )
         except Exception as exc:
             self.error.emit(str(exc))
 
@@ -550,21 +631,51 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self.status_label.setTextInteractionFlags(
             Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
         )
+        self.from_date.setDate(QDate.currentDate())
         self.refresh_btn.clicked.connect(self.refresh)
+        self.prev_btn.clicked.connect(self._prev_page)
+        self.next_btn.clicked.connect(self._next_page)
+        self.clear_filter_btn.clicked.connect(self._clear_filters)
+        self.from_check.toggled.connect(self.from_date.setEnabled)
+        self.from_check.toggled.connect(self._on_filter_changed)
+        self.from_date.dateChanged.connect(self._on_filter_changed)
+
+        # Status dropdown menu
+        self._status_menu = QMenu(self)
+        self._status_actions: dict[str, QAction] = {}
+        for s in _STATUSES:
+            action = QAction(s, self)
+            action.setCheckable(True)
+            action.triggered.connect(self._on_filter_changed)
+            self._status_menu.addAction(action)
+            self._status_actions[s] = action
+        self.status_btn.setMenu(self._status_menu)
 
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(_POLL_MS)
         self._poll_timer.timeout.connect(self._poll_pending)
+
+        self._page_limit  = 50
+        self._page_offset = 0
+        self._total       = 0
 
         self._items: dict[str, tuple[QListWidgetItem, _DownloadItemWidget]] = {}
         self._fetch_worker     = None
         self._poll_worker      = None
         self._download_workers = []
 
-        # Populate from cache immediately, then kick off a background refresh
-        for dl in _load_all_cached():
-            self._insert_item(dl)
-        if self._items:
+        # Show cached page 0 immediately, then fetch fresh in background
+        cached = _load_page_cache(
+            0,
+            self._page_limit,
+            self._get_status_filter(),
+            self._get_from_filter(),
+        )
+        if cached:
+            for dl in _load_cached_keys(cached["keys"]):
+                self._insert_item(dl)
+            self._total = cached["count"]
+            self._update_pagination()
             self.status_label.setText(f"{len(self._items)} download(s) (cached)")
             self.status_label.setStyleSheet("color: grey;")
             if any(w.status() in _PENDING for _, (_, w) in self._items.items()):
@@ -576,20 +687,108 @@ class DownloadsTab(QWidget, FORM_CLASS):
     def add_pending(self, key: str):
         data = {"key": key, "status": "SUBMITTED", "created": "", "totalRecords": None, "downloadLink": ""}
         _save_cached(data)
-        self._insert_item(data, at_top=True)
+        if self._page_offset == 0:
+            self._insert_item(data, at_top=True)
         self.status_label.setText(f"Queued: {key}")
         self.status_label.setStyleSheet("color: green;")
         self._poll_pending()
         self._poll_timer.start()
 
+    def _get_status_filter(self) -> list:
+        return [s for s, a in self._status_actions.items() if a.isChecked()]
+
+    def _get_from_filter(self) -> str:
+        if self.from_check.isChecked():
+            return self.from_date.date().toString("yyyy-MM-dd") + "T00:00:00Z"
+        return ""
+
+    def _on_filter_changed(self):
+        selected = self._get_status_filter()
+        if not selected:
+            self.status_btn.setText("Status: All")
+        elif len(selected) <= 2:
+            self.status_btn.setText(f"Status: {', '.join(selected)}")
+        else:
+            self.status_btn.setText(f"Status: {len(selected)} selected")
+        self._page_offset = 0
+        self.refresh()
+
+    def _clear_filters(self):
+        self.status_btn.blockSignals(True)
+        self.from_check.blockSignals(True)
+        self.from_date.blockSignals(True)
+        try:
+            for action in self._status_actions.values():
+                action.setChecked(False)
+            self.from_check.setChecked(False)
+            self.from_date.setDate(QDate.currentDate())
+        finally:
+            self.status_btn.blockSignals(False)
+            self.from_check.blockSignals(False)
+            self.from_date.blockSignals(False)
+
+        self.from_date.setEnabled(False)
+        self.status_btn.setText("Status: All")
+        self._page_offset = 0
+        self.refresh()
+
     def refresh(self):
         self.refresh_btn.setEnabled(False)
+        self.prev_btn.setEnabled(False)
+        self.next_btn.setEnabled(False)
         self.status_label.setText("Loading…")
         self.status_label.setStyleSheet("color: grey;")
-        self._fetch_worker = _FetchAllWorker()
+        self._fetch_worker = _FetchPageWorker(
+            self._page_offset, self._page_limit,
+            self._get_status_filter(), self._get_from_filter(),
+        )
         self._fetch_worker.finished.connect(self._on_fetched)
         self._fetch_worker.error.connect(self._on_error)
         self._fetch_worker.start()
+
+    def _prev_page(self):
+        if self._page_offset > 0:
+            self._page_offset = max(0, self._page_offset - self._page_limit)
+            self._load_page(self._page_offset)
+
+    def _next_page(self):
+        if self._page_offset + self._page_limit < self._total:
+            self._page_offset += self._page_limit
+            self._load_page(self._page_offset)
+
+    def _load_page(self, offset: int):
+        # Disable nav immediately so there's no flicker before refresh() runs
+        self.prev_btn.setEnabled(False)
+        self.next_btn.setEnabled(False)
+
+        # Show cached data immediately while fetching fresh
+        statuses = self._get_status_filter()
+        from_date = self._get_from_filter()
+        cached = _load_page_cache(offset, self._page_limit, statuses, from_date)
+        if cached:
+            self.list_widget.clear()
+            self._items.clear()
+            for dl in _load_cached_keys(cached["keys"]):
+                self._insert_item(dl)
+            self._total = cached["count"]
+            # Update the label only — buttons stay disabled until fetch completes
+            if self._total:
+                current_page = offset // self._page_limit + 1
+                total_pages  = (self._total + self._page_limit - 1) // self._page_limit
+                self.page_label.setText(f"Page {current_page} of {total_pages}  ({self._total:,} total)")
+        self.refresh()
+
+    def _update_pagination(self):
+        if self._total == 0:
+            self.page_label.setText("—")
+            self.prev_btn.setEnabled(False)
+            self.next_btn.setEnabled(False)
+            return
+        current_page = self._page_offset // self._page_limit + 1
+        total_pages  = (self._total + self._page_limit - 1) // self._page_limit
+        self.page_label.setText(f"Page {current_page} of {total_pages}  ({self._total:,} total)")
+        self.prev_btn.setEnabled(self._page_offset > 0)
+        self.next_btn.setEnabled(self._page_offset + self._page_limit < self._total)
 
     # -- Polling ----------------------------------------------------------
 
@@ -630,23 +829,32 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self.list_widget.setItemWidget(list_item, widget)
         self._items[key] = (list_item, widget)
 
-    def _on_fetched(self, downloads: list):
+    def _on_fetched(self, downloads: list, total: int, offset: int, limit: int):
         self.refresh_btn.setEnabled(True)
+        self._total       = total
+        self._page_offset = offset
 
-        # Save all fetched entries and remove stale ones from cache
-        remote_keys = {dl.get("key", "") for dl in downloads if dl.get("key")}
+        # Persist per-key details and page index
         for dl in downloads:
             _save_cached(dl)
-        _sync_cache(remote_keys)
+        _save_page_cache(
+            offset,
+            limit,
+            total,
+            [dl.get("key", "") for dl in downloads],
+            self._get_status_filter(),
+            self._get_from_filter(),
+        )
 
-        # Rebuild the list from the authoritative remote data
+        # Rebuild the list
         self.list_widget.clear()
         self._items.clear()
         for dl in downloads:
             self._insert_item(dl)
 
+        self._update_pagination()
         count = len(downloads)
-        self.status_label.setText(f"{count} download(s)")
+        self.status_label.setText(f"{count} download(s) on this page")
         self.status_label.setStyleSheet("color: green;" if count else "color: grey;")
         if any(w.status() in _PENDING for _, (_, w) in self._items.items()):
             self._poll_timer.start()
@@ -701,5 +909,6 @@ class DownloadsTab(QWidget, FORM_CLASS):
 
     def _on_error(self, message: str):
         self.refresh_btn.setEnabled(True)
+        self._update_pagination()  # restore prev/next to their correct state
         self.status_label.setText(f"Error: {message}")
         self.status_label.setStyleSheet("color: red;")

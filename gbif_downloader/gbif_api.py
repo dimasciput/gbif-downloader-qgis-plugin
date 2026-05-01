@@ -6,6 +6,7 @@ https://techdocs.gbif.org/en/openapi/v1/occurrence#/Occurrence%20downloads
 import json
 import urllib.request
 import urllib.error
+import urllib.parse
 from base64 import b64encode
 
 _BASE = "https://api.gbif.org/v1"
@@ -115,10 +116,24 @@ def get_download(key: str) -> dict:
         return json.loads(resp.read().decode())
 
 
-def list_downloads(username: str, password: str, limit: int = 50) -> list[dict]:
-    """Return the user's download list (most recent first)."""
-    url = f"{_BASE}/occurrence/download/user/{username}?limit={limit}&offset=0"
+def list_downloads(
+    username: str,
+    password: str,
+    limit: int = 50,
+    offset: int = 0,
+    statuses: list | None = None,
+    from_date: str = "",
+) -> dict:
+    """Return one page of the user's downloads (most recent first).
+
+    Returns the raw API dict: {results, count, offset, limit, endOfRecords}.
+    """
+    params = [("limit", limit), ("offset", offset)]
+    params.extend(("status", s) for s in (statuses or []))
+    if from_date:
+        params.append(("from", from_date))
+    query = urllib.parse.urlencode(params, doseq=True)
+    url = f"{_BASE}/occurrence/download/user/{urllib.parse.quote(username)}?{query}"
     req = urllib.request.Request(url, headers=_auth_header(username, password))
     with urllib.request.urlopen(req, timeout=15) as resp:
-        data = json.loads(resp.read().decode())
-    return data.get("results", [])
+        return json.loads(resp.read().decode())

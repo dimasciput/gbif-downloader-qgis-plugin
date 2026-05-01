@@ -39,6 +39,43 @@
     </layout>
    </item>
    <item>
+    <layout class="QHBoxLayout" name="filterLayout">
+     <item>
+      <widget class="QToolButton" name="status_btn">
+       <property name="text"><string>Status: All</string></property>
+       <property name="popupMode"><enum>QToolButton::InstantPopup</enum></property>
+       <property name="toolButtonStyle"><enum>Qt::ToolButtonTextOnly</enum></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="from_check">
+       <property name="text"><string>From:</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDateEdit" name="from_date">
+       <property name="enabled"><bool>false</bool></property>
+       <property name="calendarPopup"><bool>true</bool></property>
+       <property name="displayFormat"><string>yyyy-MM-dd</string></property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="filterSpacer">
+       <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       <property name="sizeHint" stdset="0">
+        <size><width>10</width><height>20</height></size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="clear_filter_btn">
+       <property name="text"><string>Clear</string></property>
+       <property name="toolTip"><string>Clear all filters</string></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
     <widget class="QListWidget" name="list_widget">
      <property name="selectionMode">
       <enum>QAbstractItemView::NoSelection</enum>
@@ -50,6 +87,28 @@
       <bool>false</bool>
      </property>
     </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="paginationLayout">
+     <item>
+      <widget class="QPushButton" name="prev_btn">
+       <property name="text"><string>← Prev</string></property>
+       <property name="enabled"><bool>false</bool></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="page_label">
+       <property name="text"><string>—</string></property>
+       <property name="alignment"><set>Qt::AlignCenter</set></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="next_btn">
+       <property name="text"><string>Next →</string></property>
+       <property name="enabled"><bool>false</bool></property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
