@@ -35,16 +35,13 @@ class ActionTab(QWidget, FORM_CLASS):
         self.status_label.setTextInteractionFlags(
             Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
         )
+        self._params_layout = self.formLayout
 
-        self.country_combo.addItem("(any)", "")
-        for code in ["AU", "BR", "CA", "DE", "ID", "IN", "MX", "US", "ZA"]:
-            self.country_combo.addItem(code, code)
-
-        self.params_group.layout().removeRow(self.species_edit)
+        self._params_layout.removeRow(self.species_edit)
         self._scientific_name_section = ScientificNameFilterSection()
-        self.params_group.layout().insertRow(0, self._scientific_name_section)
+        self._params_layout.insertRow(0, self._scientific_name_section)
 
-        self.params_group.layout().removeRow(self.basis_combo)
+        self._params_layout.removeRow(self.basis_combo)
         self._basis_section = CheckboxFilterSection(
             "Basis of record",
             [
@@ -60,10 +57,28 @@ class ActionTab(QWidget, FORM_CLASS):
             ],
             columns=2,
         )
-        self.params_group.layout().insertRow(1, self._basis_section)
+        self._params_layout.insertRow(1, self._basis_section)
+
+        self._params_layout.removeRow(self.country_combo)
+        self._country_section = CheckboxFilterSection(
+            "Country",
+            [
+                ("Australia",     "AU"),
+                ("Brazil",        "BR"),
+                ("Canada",        "CA"),
+                ("Germany",       "DE"),
+                ("Indonesia",     "ID"),
+                ("India",         "IN"),
+                ("Mexico",        "MX"),
+                ("United States", "US"),
+                ("South Africa",  "ZA"),
+            ],
+            columns=2,
+        )
+        self._params_layout.insertRow(2, self._country_section)
 
         self._year_section = YearFilterSection()
-        self.params_group.layout().insertRow(3, self._year_section)
+        self._params_layout.insertRow(3, self._year_section)
 
         self.format_combo.addItem("Simple CSV", "SIMPLE_CSV")
         self.format_combo.addItem("Darwin Core Archive", "DWCA")
@@ -81,7 +96,7 @@ class ActionTab(QWidget, FORM_CLASS):
             ],
             columns=4,
         )
-        self.params_group.layout().insertRow(4, self._month_section)
+        self._params_layout.insertRow(4, self._month_section)
 
     def _toggle_draw(self):
         canvas = self._iface.mapCanvas()
@@ -151,10 +166,14 @@ class ActionTab(QWidget, FORM_CLASS):
         checked = self._basis_section.get_checked_values()
         return checked if 0 < len(checked) < 9 else []
 
+    def _get_country_filter(self) -> list[str]:
+        checked = self._country_section.get_checked_values()
+        return checked if 0 < len(checked) < 9 else []
+
     def _submit(self):
         predicate = build_predicate(
             scientific_name=self._scientific_name_section.get_scientific_name(),
-            country=self.country_combo.currentData(),
+            country=self._get_country_filter(),
             basis=self._get_basis_filter(),
             geometry_wkt=self._extent_wkt,
             year_predicates=self._year_section.get_year_predicate(),

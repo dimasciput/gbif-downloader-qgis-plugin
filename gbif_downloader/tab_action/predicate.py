@@ -18,7 +18,7 @@ def geom_to_wkt(geom: QgsGeometry, canvas_crs) -> str:
 
 def build_predicate(
     scientific_name: str,
-    country: str,
+    country: str | list[str],
     basis: str | list[str],
     geometry_wkt: str,
     year_predicates: list | None = None,
@@ -35,7 +35,10 @@ def build_predicate(
             {"type": "equals", "key": "SCIENTIFIC_NAME", "value": scientific_name}
         )
     if country:
-        parts.append({"type": "equals", "key": "COUNTRY", "value": country})
+        if isinstance(country, list):
+            parts.append({"type": "in", "key": "COUNTRY", "values": country})
+        else:
+            parts.append({"type": "equals", "key": "COUNTRY", "value": country})
     if basis:
         if isinstance(basis, list):
             parts.append({"type": "in", "key": "BASIS_OF_RECORD", "values": basis})
