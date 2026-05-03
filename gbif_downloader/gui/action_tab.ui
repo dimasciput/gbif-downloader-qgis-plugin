@@ -6,15 +6,23 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>380</width>
-    <height>420</height>
+    <width>718</width>
+    <height>757</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="leftMargin"><number>8</number></property>
-   <property name="topMargin"><number>8</number></property>
-   <property name="rightMargin"><number>8</number></property>
-   <property name="bottomMargin"><number>8</number></property>
+   <property name="leftMargin">
+    <number>8</number>
+   </property>
+   <property name="topMargin">
+    <number>8</number>
+   </property>
+   <property name="rightMargin">
+    <number>8</number>
+   </property>
+   <property name="bottomMargin">
+    <number>8</number>
+   </property>
    <item>
     <widget class="QGroupBox" name="params_group">
      <property name="title">
@@ -23,7 +31,9 @@
      <layout class="QFormLayout" name="formLayout">
       <item row="0" column="0">
        <widget class="QLabel" name="label_species">
-        <property name="text"><string>Species:</string></property>
+        <property name="text">
+         <string>Species:</string>
+        </property>
        </widget>
       </item>
       <item row="0" column="1">
@@ -35,99 +45,86 @@
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="label_country">
-        <property name="text"><string>Country:</string></property>
+        <property name="text">
+         <string>Country:</string>
+        </property>
        </widget>
       </item>
       <item row="1" column="1">
        <widget class="QComboBox" name="country_combo"/>
       </item>
       <item row="2" column="0">
-       <widget class="QLabel" name="label_year">
-        <property name="text"><string>Year range:</string></property>
+       <widget class="QLabel" name="label_basis">
+        <property name="text">
+         <string>Basis of record:</string>
+        </property>
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QWidget" name="year_row" native="true">
-        <layout class="QHBoxLayout" name="yearLayout">
-         <property name="leftMargin"><number>0</number></property>
-         <property name="topMargin"><number>0</number></property>
-         <property name="rightMargin"><number>0</number></property>
-         <property name="bottomMargin"><number>0</number></property>
-         <item>
-          <widget class="QSpinBox" name="year_from">
-           <property name="minimum"><number>1750</number></property>
-           <property name="maximum"><number>2100</number></property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="label_to">
-           <property name="text"><string>to</string></property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QSpinBox" name="year_to">
-           <property name="minimum"><number>1750</number></property>
-           <property name="maximum"><number>2100</number></property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="yearSpacer">
-           <property name="orientation"><enum>Qt::Horizontal</enum></property>
-           <property name="sizeHint" stdset="0">
-            <size><width>40</width><height>20</height></size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
-       </widget>
+       <widget class="QComboBox" name="basis_combo"/>
       </item>
       <item row="3" column="0">
-       <widget class="QLabel" name="label_basis">
-        <property name="text"><string>Basis of record:</string></property>
+       <widget class="QLabel" name="label_format">
+        <property name="text">
+         <string>Download format:</string>
+        </property>
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="QComboBox" name="basis_combo"/>
+       <widget class="QComboBox" name="format_combo"/>
       </item>
       <item row="4" column="0">
-       <widget class="QLabel" name="label_format">
-        <property name="text"><string>Download format:</string></property>
+       <widget class="QLabel" name="label_polygon">
+        <property name="text">
+         <string>Polygon:</string>
+        </property>
        </widget>
       </item>
       <item row="4" column="1">
-       <widget class="QComboBox" name="format_combo"/>
-      </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="label_polygon">
-        <property name="text"><string>Polygon:</string></property>
-       </widget>
-      </item>
-      <item row="5" column="1">
        <widget class="QWidget" name="polygon_row" native="true">
         <layout class="QHBoxLayout" name="polygonLayout">
-         <property name="leftMargin"><number>0</number></property>
-         <property name="topMargin"><number>0</number></property>
-         <property name="rightMargin"><number>0</number></property>
-         <property name="bottomMargin"><number>0</number></property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
          <item>
           <widget class="QPushButton" name="draw_btn">
-           <property name="text"><string>Draw Polygon</string></property>
            <property name="toolTip">
             <string>Click to add vertices, right-click to close the polygon</string>
+           </property>
+           <property name="text">
+            <string>Draw Polygon</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QPushButton" name="clear_polygon_btn">
-           <property name="text"><string>Clear</string></property>
-           <property name="enabled"><bool>false</bool></property>
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
           </widget>
          </item>
          <item>
           <spacer name="polygonSpacer">
-           <property name="orientation"><enum>Qt::Horizontal</enum></property>
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
            <property name="sizeHint" stdset="0">
-            <size><width>40</width><height>20</height></size>
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
            </property>
           </spacer>
          </item>
@@ -141,37 +138,59 @@
     <layout class="QHBoxLayout" name="bottomLayout">
      <item>
       <widget class="QCheckBox" name="notify_check">
-       <property name="text"><string>Send email notification</string></property>
-       <property name="checked"><bool>true</bool></property>
+       <property name="text">
+        <string>Send email notification</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
       </widget>
      </item>
      <item>
       <spacer name="bottomSpacer">
-       <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
        <property name="sizeHint" stdset="0">
-        <size><width>40</width><height>20</height></size>
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
        </property>
       </spacer>
      </item>
      <item>
       <widget class="QPushButton" name="submit_btn">
-       <property name="text"><string>Submit Download</string></property>
+       <property name="text">
+        <string>Submit Download</string>
+       </property>
       </widget>
      </item>
     </layout>
    </item>
    <item>
     <widget class="QLabel" name="status_label">
-     <property name="text"><string/></property>
-     <property name="alignment"><set>Qt::AlignCenter</set></property>
-     <property name="wordWrap"><bool>true</bool></property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
     </widget>
    </item>
    <item>
     <spacer name="verticalSpacer">
-     <property name="orientation"><enum>Qt::Vertical</enum></property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
      <property name="sizeHint" stdset="0">
-      <size><width>20</width><height>40</height></size>
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
      </property>
     </spacer>
    </item>

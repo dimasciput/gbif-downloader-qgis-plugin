@@ -1,4 +1,3 @@
-import datetime
 import os
 
 from qgis.core import QgsWkbTypes
@@ -6,6 +5,7 @@ from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtWidgets import QWidget
 
+from .accordion import CheckboxFilterSection, YearFilterSection
 from .predicate import build_predicate, geom_to_wkt
 from .polygon_tool import PolygonTool
 from .worker import SubmitWorker
@@ -36,11 +36,8 @@ class ActionTab(QWidget, FORM_CLASS):
         for code in ["AU", "BR", "CA", "DE", "ID", "IN", "MX", "US", "ZA"]:
             self.country_combo.addItem(code, code)
 
-        current_year = datetime.date.today().year
-        self.year_from.setRange(1750, current_year)
-        self.year_from.setValue(current_year - 5)
-        self.year_to.setRange(1750, current_year)
-        self.year_to.setValue(current_year)
+        self._year_section = YearFilterSection()
+        self.params_group.layout().insertRow(2, self._year_section)
 
         self.basis_combo.addItem("(any)", "")
         for v in [
@@ -58,6 +55,17 @@ class ActionTab(QWidget, FORM_CLASS):
         self.draw_btn.clicked.connect(self._toggle_draw)
         self.clear_polygon_btn.clicked.connect(self._clear_polygon)
         self.submit_btn.clicked.connect(self._submit)
+
+        self._month_section = CheckboxFilterSection(
+            "Month",
+            [
+                ("Jan", 1), ("Feb", 2),  ("Mar", 3),  ("Apr", 4),
+                ("May", 5), ("Jun", 6),  ("Jul", 7),  ("Aug", 8),
+                ("Sep", 9), ("Oct", 10), ("Nov", 11), ("Dec", 12),
+            ],
+            columns=4,
+        )
+        self.params_group.layout().insertRow(3, self._month_section)
 
     def _toggle_draw(self):
         canvas = self._iface.mapCanvas()
@@ -119,21 +127,18 @@ class ActionTab(QWidget, FORM_CLASS):
         self._stop_draw()
         self._clear_polygon()
 
-    def _submit(self):
-        year_from = self.year_from.value()
-        year_to   = self.year_to.value()
-        if year_from > year_to:
-            self.status_label.setText("Year 'from' must be ≤ year 'to'.")
-            self.status_label.setStyleSheet("color: red;")
-            return
+    def _get_month_filter(self) -> list[int]:
+        checked = self._month_section.get_checked_values()
+        return checked if 0 < len(checked) < 12 else []
 
+    def _submit(self):
         predicate = build_predicate(
             species=self.species_edit.text().strip(),
             country=self.country_combo.currentData(),
-            year_from=year_from,
-            year_to=year_to,
             basis=self.basis_combo.currentData(),
             geometry_wkt=self._extent_wkt,
+            year_predicates=self._year_section.get_year_predicate(),
+            months=self._get_month_filter(),
         )
         fmt = self.format_combo.currentData()
 

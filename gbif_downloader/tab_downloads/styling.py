@@ -39,7 +39,6 @@ def apply_iucn_style(layer: QgsVectorLayer) -> bool:
         })
         categories.append(QgsRendererCategory(code, symbol, f"{code} – {label}"))
 
-    # Catch-all for unknown / empty values
     catch_all = QgsMarkerSymbol.createSimple({
         "name":          "circle",
         "color":         "#aaaaaa",

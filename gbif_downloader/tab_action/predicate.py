@@ -19,17 +19,17 @@ def geom_to_wkt(geom: QgsGeometry, canvas_crs) -> str:
 def build_predicate(
     species: str,
     country: str,
-    year_from: int,
-    year_to: int,
     basis: str,
     geometry_wkt: str,
+    year_predicates: list | None = None,
+    months: list | None = None,
 ) -> dict:
     parts = [
         {"type": "equals", "key": "HAS_COORDINATE",       "value": "true"},
         {"type": "equals", "key": "HAS_GEOSPATIAL_ISSUE",  "value": "false"},
-        {"type": "greaterThanOrEquals", "key": "YEAR", "value": str(year_from)},
-        {"type": "lessThanOrEquals",    "key": "YEAR", "value": str(year_to)},
     ]
+    if year_predicates:
+        parts.extend(year_predicates)
     if species:
         parts.append({"type": "equals", "key": "SCIENTIFIC_NAME", "value": species})
     if country:
@@ -38,5 +38,7 @@ def build_predicate(
         parts.append({"type": "equals", "key": "BASIS_OF_RECORD", "value": basis})
     if geometry_wkt:
         parts.append({"type": "within", "geometry": geometry_wkt})
+    if months:
+        parts.append({"type": "in", "key": "MONTH", "values": [str(m) for m in months]})
 
     return {"type": "and", "predicates": parts}
