@@ -24,6 +24,7 @@ from qgis.PyQt.QtWidgets import (
     QLabel,
     QListWidgetItem,
     QMenu,
+    QMessageBox,
     QWidget,
 )
 
@@ -218,6 +219,27 @@ class _PollWorker(QThread):
                 self.updated.emit(key, get_download(key))
             except Exception:
                 pass
+
+
+class _CancelWorker(QThread):
+    finished = pyqtSignal(str)
+    error    = pyqtSignal(str)
+
+    def __init__(self, key: str):
+        super().__init__()
+        self._key = key
+
+    def run(self):
+        from .gbif_api import get_credentials, cancel_download
+        username, password = get_credentials()
+        if not username:
+            self.error.emit("No GBIF credentials configured.")
+            return
+        try:
+            cancel_download(username, password, self._key)
+            self.finished.emit(self._key)
+        except Exception as exc:
+            self.error.emit(str(exc))
 
 
 class _DownloadWorker(QThread):
@@ -500,10 +522,6 @@ class _DetailDialog(DETAIL_BASE_CLASS, DETAIL_FORM_CLASS):
             self.filter_list.setItemWidget(item, widget)
 
 
-# ---------------------------------------------------------------------------
-# Vertical label
-# ---------------------------------------------------------------------------
-
 class _VerticalLabel(QLabel):
     """QLabel that renders its text rotated 90° counter-clockwise."""
 
@@ -539,7 +557,6 @@ class _DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
         self._status = ""
         self._data = {}
 
-        # Swap the plain status_label for a vertical one
         layout = self.status_frame.layout()
         layout.removeWidget(self.status_label)
         self.status_label.deleteLater()
@@ -558,6 +575,7 @@ class _DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
         self.load_btn.setIcon(QgsApplication.getThemeIcon("/mActionAddOgrLayer.svg"))
         self.zip_btn.setIcon(QgsApplication.getThemeIcon("/mActionFileSave.svg"))
         self.details_btn.setIcon(QgsApplication.getThemeIcon("/mActionIdentify.svg"))
+        self.cancel_btn.setIcon(QgsApplication.getThemeIcon("/mActionDeleteSelectedFeatures.svg"))
 
         self.load_btn.clicked.connect(
             lambda: tab._save(self._download_link, "map", self._key)
@@ -566,6 +584,8 @@ class _DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
             lambda: tab._save(self._download_link, "zip", self._key)
         )
         self.details_btn.clicked.connect(self._open_details)
+        self.cancel_btn.clicked.connect(
+            lambda: tab._confirm_cancel(self._key))
 
         self.update_data(data)
 
@@ -617,6 +637,7 @@ class _DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
         has_link = bool(self._download_link) and self._status == "SUCCEEDED"
         self.load_btn.setVisible(has_link)
         self.zip_btn.setVisible(has_link)
+        self.cancel_btn.setVisible(self._status in _PENDING)
 
 
 # ---------------------------------------------------------------------------
@@ -663,6 +684,7 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self._fetch_worker     = None
         self._poll_worker      = None
         self._download_workers = []
+        self._cancel_workers   = []
 
         # Show cached page 0 immediately, then fetch fresh in background
         cached = _load_page_cache(
@@ -821,7 +843,7 @@ class DownloadsTab(QWidget, FORM_CLASS):
             return
         widget = _DownloadItemWidget(data, self)
         list_item = QListWidgetItem()
-        list_item.setSizeHint(QSize(0, 125))
+        list_item.setSizeHint(QSize(0, 115))
         if at_top:
             self.list_widget.insertItem(0, list_item)
         else:
@@ -858,6 +880,44 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self.status_label.setStyleSheet("color: green;" if count else "color: grey;")
         if any(w.status() in _PENDING for _, (_, w) in self._items.items()):
             self._poll_timer.start()
+
+    # -- Cancel -----------------------------------------------------------
+
+    def _confirm_cancel(self, key: str):
+        reply = QMessageBox.question(
+            self,
+            "Cancel Download",
+            f"Cancel this running download?\n\n{key}",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        worker = _CancelWorker(key)
+        worker.finished.connect(self._on_cancel_finished)
+        worker.error.connect(self._on_cancel_error)
+        self._cancel_workers.append(worker)
+        worker.start()
+        self.status_label.setText(f"Cancelling {key}…")
+        self.status_label.setStyleSheet("color: grey;")
+
+    def _on_cancel_finished(self, key: str):
+        key_dir = _cache_dir() / key
+        if key_dir.exists():
+            shutil.rmtree(key_dir, ignore_errors=True)
+        if key in self._items:
+            list_item, _ = self._items.pop(key)
+            self.list_widget.takeItem(self.list_widget.row(list_item))
+        self._total = max(0, self._total - 1)
+        self._update_pagination()
+        self.status_label.setText(f"Cancelled: {key}")
+        self.status_label.setStyleSheet("color: green;")
+        self._cancel_workers = [w for w in self._cancel_workers if w.isRunning()]
+
+    def _on_cancel_error(self, message: str):
+        self.status_label.setText(f"Cancel failed: {message}")
+        self.status_label.setStyleSheet("color: red;")
+        self._cancel_workers = [w for w in self._cancel_workers if w.isRunning()]
 
     # -- Download ---------------------------------------------------------
 

@@ -116,6 +116,18 @@ def get_download(key: str) -> dict:
         return json.loads(resp.read().decode())
 
 
+def cancel_download(username: str, password: str, key: str) -> None:
+    """Cancel a running download by key. Raises RuntimeError on failure."""
+    url = f"{_BASE}/occurrence/download/request/{urllib.parse.quote(key)}"
+    req = urllib.request.Request(url, headers=_auth_header(username, password), method="DELETE")
+    try:
+        with urllib.request.urlopen(req, timeout=10):
+            pass
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode()
+        raise RuntimeError(f"HTTP {exc.code}: {detail}") from exc
+
+
 def list_downloads(
     username: str,
     password: str,
