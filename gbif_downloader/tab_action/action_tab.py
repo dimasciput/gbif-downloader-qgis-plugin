@@ -31,6 +31,7 @@ class ActionTab(QWidget, FORM_CLASS):
         self._rubber_band  = None
         self._extent_wkt   = ""
         self._worker       = None
+        self._download_format = "SIMPLE_CSV"
 
         self.status_label.setTextInteractionFlags(
             Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
@@ -80,8 +81,7 @@ class ActionTab(QWidget, FORM_CLASS):
         self._year_section = YearFilterSection()
         self._params_layout.insertRow(3, self._year_section)
 
-        self.format_combo.addItem("Simple CSV", "SIMPLE_CSV")
-        self.format_combo.addItem("Darwin Core Archive", "DWCA")
+        self._params_layout.removeRow(self.format_combo)
 
         self.draw_btn.clicked.connect(self._toggle_draw)
         self.clear_polygon_btn.clicked.connect(self._clear_polygon)
@@ -179,7 +179,7 @@ class ActionTab(QWidget, FORM_CLASS):
             year_predicates=self._year_section.get_year_predicate(),
             months=self._get_month_filter(),
         )
-        fmt = self.format_combo.currentData()
+        fmt = self._download_format
 
         self.submit_btn.setEnabled(False)
         self.status_label.setText("Submitting…")
