@@ -22,6 +22,7 @@ from .cache import (
     save_page_cache,
 )
 from .helpers import PENDING, POLL_MS, STATUSES
+from .styling import apply_iucn_style
 from .widgets import DownloadItemWidget
 from .workers import CancelWorker, DownloadWorker, FetchPageWorker, PollWorker
 
@@ -322,6 +323,7 @@ class DownloadsTab(QWidget, FORM_CLASS):
             )
             layer = QgsVectorLayer(uri, name, "delimitedtext")
             if layer.isValid():
+                apply_iucn_style(layer)
                 QgsProject.instance().addMapLayer(layer)
                 self.status_label.setText(f"Layer added: {name}")
             else:
