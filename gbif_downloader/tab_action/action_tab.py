@@ -44,18 +44,26 @@ class ActionTab(QWidget, FORM_CLASS):
         self._scientific_name_section = ScientificNameFilterSection()
         self.params_group.layout().insertRow(0, self._scientific_name_section)
 
-        self._year_section = YearFilterSection()
-        self.params_group.layout().insertRow(2, self._year_section)
+        self.params_group.layout().removeRow(self.basis_combo)
+        self._basis_section = CheckboxFilterSection(
+            "Basis of record",
+            [
+                ("Observation",          "OBSERVATION"),
+                ("Machine observation",  "MACHINE_OBSERVATION"),
+                ("Human observation",    "HUMAN_OBSERVATION"),
+                ("Material sample",      "MATERIAL_SAMPLE"),
+                ("Material citation",    "MATERIAL_CITATION"),
+                ("Preserved specimen",   "PRESERVED_SPECIMEN"),
+                ("Fossil specimen",      "FOSSIL_SPECIMEN"),
+                ("Living specimen",      "LIVING_SPECIMEN"),
+                ("Occurrence",           "OCCURRENCE"),
+            ],
+            columns=2,
+        )
+        self.params_group.layout().insertRow(1, self._basis_section)
 
-        self.basis_combo.addItem("(any)", "")
-        for v in [
-            "HUMAN_OBSERVATION",
-            "MACHINE_OBSERVATION",
-            "PRESERVED_SPECIMEN",
-            "MATERIAL_CITATION",
-            "OCCURRENCE",
-        ]:
-            self.basis_combo.addItem(v, v)
+        self._year_section = YearFilterSection()
+        self.params_group.layout().insertRow(3, self._year_section)
 
         self.format_combo.addItem("Simple CSV", "SIMPLE_CSV")
         self.format_combo.addItem("Darwin Core Archive", "DWCA")
@@ -73,7 +81,7 @@ class ActionTab(QWidget, FORM_CLASS):
             ],
             columns=4,
         )
-        self.params_group.layout().insertRow(3, self._month_section)
+        self.params_group.layout().insertRow(4, self._month_section)
 
     def _toggle_draw(self):
         canvas = self._iface.mapCanvas()
@@ -139,11 +147,15 @@ class ActionTab(QWidget, FORM_CLASS):
         checked = self._month_section.get_checked_values()
         return checked if 0 < len(checked) < 12 else []
 
+    def _get_basis_filter(self) -> list[str]:
+        checked = self._basis_section.get_checked_values()
+        return checked if 0 < len(checked) < 9 else []
+
     def _submit(self):
         predicate = build_predicate(
             scientific_name=self._scientific_name_section.get_scientific_name(),
             country=self.country_combo.currentData(),
-            basis=self.basis_combo.currentData(),
+            basis=self._get_basis_filter(),
             geometry_wkt=self._extent_wkt,
             year_predicates=self._year_section.get_year_predicate(),
             months=self._get_month_filter(),
