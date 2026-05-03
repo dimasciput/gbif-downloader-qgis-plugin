@@ -33,6 +33,24 @@ QToolButton:checked {
 }
 """
 
+_ACTIVE_HEADER_STYLE = """
+QToolButton {
+    font-weight: bold;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 3px;
+    border-bottom: 1px solid transparent;
+    background: rgba(76, 175, 80, 22);
+    text-align: left;
+}
+QToolButton:hover { background-color: rgba(76, 175, 80, 45); }
+QToolButton:checked {
+    border-bottom-color: #88bb88;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+}
+"""
+
 _ACTION_BTN_STYLE = """
 QPushButton {
     border: 1px solid #888888;
@@ -102,6 +120,13 @@ class AccordionSection(QWidget):
     def set_expanded(self, expanded: bool):
         self._header.setChecked(expanded)
 
+    def set_active(self, active: bool):
+        self._header.setStyleSheet(_ACTIVE_HEADER_STYLE if active else _HEADER_STYLE)
+        border = "#88bb88" if active else "#aaaaaa"
+        self._frame.setStyleSheet(
+            f"QFrame#accordionFrame {{ border: 1px solid {border}; border-radius: 3px; }}"
+        )
+
     def _on_toggle(self, checked: bool):
         self._panel.setVisible(checked)
         self._header.setArrowType(Qt.DownArrow if checked else Qt.RightArrow)
@@ -130,6 +155,7 @@ class CheckboxFilterSection(AccordionSection):
         layout = self.content_layout
         for i, (label, value) in enumerate(items):
             cb = QCheckBox(label)
+            cb.stateChanged.connect(self._update_active)
             layout.addWidget(cb, i // columns, i % columns)
             self._checkboxes.append((cb, value))
 
@@ -152,6 +178,9 @@ class CheckboxFilterSection(AccordionSection):
     def _clear_all(self):
         for cb, _ in self._checkboxes:
             cb.setChecked(False)
+
+    def _update_active(self):
+        self.set_active(bool(self.get_checked_values()))
 
     def get_checked_values(self) -> list:
         """Return the values of all currently checked items."""
@@ -205,10 +234,14 @@ class YearFilterSection(AccordionSection):
 
         self._mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         clear_btn.clicked.connect(self._clear)
+        self.toggled.connect(lambda _: self._update_active())
         self._on_mode_changed(0)
 
     def _mode_key(self) -> str:
         return self._MODES[self._mode_combo.currentIndex()][1]
+
+    def _update_active(self):
+        self.set_active(self.is_expanded() and self._mode_key() != "none")
 
     def _on_mode_changed(self, _index: int = 0):
         mode = self._mode_key()
@@ -217,6 +250,7 @@ class YearFilterSection(AccordionSection):
         self._year_from.setVisible(has_input)
         self._label_to.setVisible(is_between)
         self._year_to.setVisible(is_between)
+        self._update_active()
 
     def _clear(self):
         current_year = datetime.date.today().year
