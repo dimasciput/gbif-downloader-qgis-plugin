@@ -369,7 +369,7 @@ class YearFilterSection(AccordionSection):
     """AccordionSection with GBIF-style year filter.
 
     Modes: Between, Is, Before end of, After start of.
-    Collapsed = no year filter applied.
+    The selected mode applies even when the section is collapsed.
     """
 
     _MODES = [
@@ -419,7 +419,7 @@ class YearFilterSection(AccordionSection):
         return self._MODES[self._mode_combo.currentIndex()][1]
 
     def _update_active(self):
-        self.set_active(self.is_expanded() and self._mode_key() != "none")
+        self.set_active(self._mode_key() != "none")
 
     def _on_mode_changed(self, _index: int = 0):
         mode = self._mode_key()
@@ -438,8 +438,6 @@ class YearFilterSection(AccordionSection):
 
     def get_year_predicate(self) -> list[dict]:
         """Return GBIF predicate parts for the year filter, or [] for no filter."""
-        if not self.is_expanded():
-            return []
         mode = self._mode_key()
         if mode == "none":
             return []
