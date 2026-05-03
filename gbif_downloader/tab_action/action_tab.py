@@ -1,6 +1,5 @@
 import os
 
-from qgis.core import QgsWkbTypes
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtWidgets import QWidget
@@ -10,7 +9,8 @@ from .accordion import (
     ScientificNameFilterSection,
     YearFilterSection,
 )
-from .predicate import build_predicate, geom_to_wkt
+from .geometry_filter import GeometryFilterSection
+from .predicate import build_predicate
 from .polygon_tool import PolygonTool
 from .worker import SubmitWorker
 
@@ -28,8 +28,6 @@ class ActionTab(QWidget, FORM_CLASS):
         self._iface        = iface
         self._polygon_tool = None
         self._prev_tool    = None
-        self._rubber_band  = None
-        self._extent_wkt   = ""
         self._worker       = None
         self._download_format = "SIMPLE_CSV"
 
@@ -82,9 +80,11 @@ class ActionTab(QWidget, FORM_CLASS):
         self._params_layout.insertRow(3, self._year_section)
 
         self._params_layout.removeRow(self.format_combo)
+        self._params_layout.removeRow(self.polygon_row)
+        self._geometry_section = GeometryFilterSection(self._iface)
+        self._geometry_section.set_draw_handlers(self._toggle_draw, self._stop_draw)
+        self._params_layout.insertRow(5, self._geometry_section)
 
-        self.draw_btn.clicked.connect(self._toggle_draw)
-        self.clear_polygon_btn.clicked.connect(self._clear_polygon)
         self.submit_btn.clicked.connect(self._submit)
 
         self._month_section = CheckboxFilterSection(
@@ -112,11 +112,8 @@ class ActionTab(QWidget, FORM_CLASS):
         self._polygon_tool.polygon_captured.connect(self._on_polygon_captured)
         self._polygon_tool.deactivated.connect(self._stop_draw)
         canvas.setMapTool(self._polygon_tool)
-        self.draw_btn.setText("Cancel")
-        self.status_label.setText(
-            "Click to add vertices — right-click to close the polygon."
-        )
-        self.status_label.setStyleSheet("color: #555;")
+        self._geometry_section.set_draw_active(True)
+        self._geometry_section.set_draw_prompt()
 
     def _stop_draw(self):
         canvas = self._iface.mapCanvas()
@@ -130,33 +127,21 @@ class ActionTab(QWidget, FORM_CLASS):
         if self._prev_tool:
             canvas.setMapTool(self._prev_tool)
             self._prev_tool = None
-        self.draw_btn.setText("Draw Polygon")
-        if not self._extent_wkt:
-            self.status_label.setText("")
-            self.status_label.setStyleSheet("")
+        self._geometry_section.set_draw_cancelled()
 
     def _on_polygon_captured(self, geom):
         canvas = self._iface.mapCanvas()
-        if self._rubber_band is not None:
-            self._rubber_band.reset(QgsWkbTypes.PolygonGeometry)
-        self._rubber_band = self._polygon_tool.rubber_band()
-        self._extent_wkt  = geom_to_wkt(geom, canvas.mapSettings().destinationCrs())
-        self.clear_polygon_btn.setEnabled(True)
-        self.status_label.setText("")
-        self.status_label.setStyleSheet("")
+        self._geometry_section.set_drawn_geometry(
+            geom,
+            canvas.mapSettings().destinationCrs(),
+            self._polygon_tool.rubber_band(),
+        )
         self._stop_draw()
-
-    def _clear_polygon(self):
-        if self._rubber_band is not None:
-            self._rubber_band.reset(QgsWkbTypes.PolygonGeometry)
-            self._rubber_band = None
-        self._extent_wkt = ""
-        self.clear_polygon_btn.setEnabled(False)
 
     def cleanup(self):
         """Remove rubber band and map tool — call on plugin unload."""
         self._stop_draw()
-        self._clear_polygon()
+        self._geometry_section.clear_geometry()
 
     def _get_month_filter(self) -> list[int]:
         checked = self._month_section.get_checked_values()
@@ -175,7 +160,7 @@ class ActionTab(QWidget, FORM_CLASS):
             scientific_name=self._scientific_name_section.get_scientific_name(),
             country=self._get_country_filter(),
             basis=self._get_basis_filter(),
-            geometry_wkt=self._extent_wkt,
+            geometry_wkt=self._geometry_section.get_geometry_wkt(),
             year_predicates=self._year_section.get_year_predicate(),
             months=self._get_month_filter(),
         )
