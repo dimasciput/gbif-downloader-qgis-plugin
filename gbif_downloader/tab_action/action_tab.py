@@ -5,7 +5,11 @@ from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtWidgets import QWidget
 
-from .accordion import CheckboxFilterSection, YearFilterSection
+from .accordion import (
+    CheckboxFilterSection,
+    ScientificNameFilterSection,
+    YearFilterSection,
+)
 from .predicate import build_predicate, geom_to_wkt
 from .polygon_tool import PolygonTool
 from .worker import SubmitWorker
@@ -35,6 +39,10 @@ class ActionTab(QWidget, FORM_CLASS):
         self.country_combo.addItem("(any)", "")
         for code in ["AU", "BR", "CA", "DE", "ID", "IN", "MX", "US", "ZA"]:
             self.country_combo.addItem(code, code)
+
+        self.params_group.layout().removeRow(self.species_edit)
+        self._scientific_name_section = ScientificNameFilterSection()
+        self.params_group.layout().insertRow(0, self._scientific_name_section)
 
         self._year_section = YearFilterSection()
         self.params_group.layout().insertRow(2, self._year_section)
@@ -133,7 +141,7 @@ class ActionTab(QWidget, FORM_CLASS):
 
     def _submit(self):
         predicate = build_predicate(
-            species=self.species_edit.text().strip(),
+            scientific_name=self._scientific_name_section.get_scientific_name(),
             country=self.country_combo.currentData(),
             basis=self.basis_combo.currentData(),
             geometry_wkt=self._extent_wkt,

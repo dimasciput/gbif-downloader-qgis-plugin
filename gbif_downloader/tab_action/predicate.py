@@ -17,7 +17,7 @@ def geom_to_wkt(geom: QgsGeometry, canvas_crs) -> str:
 
 
 def build_predicate(
-    species: str,
+    scientific_name: str,
     country: str,
     basis: str,
     geometry_wkt: str,
@@ -30,8 +30,10 @@ def build_predicate(
     ]
     if year_predicates:
         parts.extend(year_predicates)
-    if species:
-        parts.append({"type": "equals", "key": "SCIENTIFIC_NAME", "value": species})
+    if scientific_name:
+        parts.append(
+            {"type": "equals", "key": "SCIENTIFIC_NAME", "value": scientific_name}
+        )
     if country:
         parts.append({"type": "equals", "key": "COUNTRY", "value": country})
     if basis:
