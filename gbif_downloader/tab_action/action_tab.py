@@ -2,15 +2,19 @@ import os
 
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, pyqtSignal
-from qgis.PyQt.QtWidgets import QWidget
+from qgis.PyQt.QtWidgets import (
+    QWidget,
+    QMessageBox
+)
+
+from gbif_downloader.tab_action.taxon_filter import ScientificNameFilterSection
 
 from .accordion import (
     CheckboxFilterSection,
-    ScientificNameFilterSection,
     YearFilterSection,
 )
 from .geometry_filter import GeometryFilterSection
-from .predicate import build_predicate
+from .predicate import build_predicate, format_predicate_summary
 from .polygon_tool import PolygonTool
 from .worker import SubmitWorker
 
@@ -37,8 +41,8 @@ class ActionTab(QWidget, FORM_CLASS):
         self._params_layout = self.formLayout
 
         self._params_layout.removeRow(self.species_edit)
-        self._scientific_name_section = ScientificNameFilterSection()
-        self._params_layout.insertRow(0, self._scientific_name_section)
+        self._taxon_filter = ScientificNameFilterSection()
+        self._params_layout.insertRow(0, self._taxon_filter)
 
         self._params_layout.removeRow(self.basis_combo)
         self._basis_section = CheckboxFilterSection(
@@ -156,8 +160,24 @@ class ActionTab(QWidget, FORM_CLASS):
         return checked if 0 < len(checked) < 9 else []
 
     def _submit(self):
+        has_filter = any([
+            self._taxon_filter.get_selected_taxon(),
+            self._get_country_filter(),
+            self._get_basis_filter(),
+            self._geometry_section.get_geometry_wkt(),
+            self._year_section.get_year_predicate(),
+            self._get_month_filter(),
+        ])
+        if not has_filter:
+            QMessageBox.warning(
+                self,
+                "No Filters Applied",
+                "Please apply at least one filter before submitting a download request.",
+            )
+            return
+
         predicate = build_predicate(
-            scientific_name=self._scientific_name_section.get_scientific_name(),
+            taxon=self._taxon_filter.get_selected_taxon(),
             country=self._get_country_filter(),
             basis=self._get_basis_filter(),
             geometry_wkt=self._geometry_section.get_geometry_wkt(),
@@ -165,6 +185,17 @@ class ActionTab(QWidget, FORM_CLASS):
             months=self._get_month_filter(),
         )
         fmt = self._download_format
+        
+        summary = format_predicate_summary(predicate)
+        reply = QMessageBox.question(
+            self,
+            "Submit Download",
+            f"Submit this GBIF download request?\n\nFilters:\n{summary}",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
 
         self.submit_btn.setEnabled(False)
         self.status_label.setText("Submitting…")

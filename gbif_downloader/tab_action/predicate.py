@@ -6,6 +6,8 @@ from qgis.core import (
     QgsWkbTypes,
 )
 
+from gbif_downloader.tab_action.taxon_filter import Taxon
+
 _WGS84 = QgsCoordinateReferenceSystem("EPSG:4326")
 
 
@@ -63,7 +65,7 @@ def _ring_signed_area(ring: list) -> float:
 
 
 def build_predicate(
-    scientific_name: str,
+    taxon: Taxon | None,
     country: str | list[str],
     basis: str | list[str],
     geometry_wkt: str,
@@ -76,10 +78,15 @@ def build_predicate(
     ]
     if year_predicates:
         parts.extend(year_predicates)
-    if scientific_name:
-        parts.append(
-            {"type": "equals", "key": "SCIENTIFIC_NAME", "value": scientific_name}
-        )
+    if taxon:
+        if taxon.key:
+            parts.append(
+                {"type": "equals", "key": "TAXON_KEY", "value": taxon.key}
+            )
+        else:
+            parts.append(
+                {"type": "equals", "key": "SCIENTIFIC_NAME", "value": taxon.name}
+            )
     if country:
         if isinstance(country, list):
             parts.append({"type": "in", "key": "COUNTRY", "values": country})
@@ -96,3 +103,44 @@ def build_predicate(
         parts.append({"type": "in", "key": "MONTH", "values": [str(m) for m in months]})
 
     return {"type": "and", "predicates": parts}
+
+
+_MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+_OP_SYMBOL = {
+    "greaterThanOrEquals": "≥",
+    "lessThanOrEquals": "≤",
+    "greaterThan": ">",
+    "lessThan": "<",
+}
+_KEY_LABEL = {
+    "TAXON_KEY": "Taxon key",
+    "SCIENTIFIC_NAME": "Scientific name",
+    "COUNTRY": "Country",
+    "BASIS_OF_RECORD": "Basis of record",
+    "YEAR": "Year",
+    "MONTH": "Month",
+}
+_SKIP_KEYS = {"HAS_COORDINATE", "HAS_GEOSPATIAL_ISSUE"}
+
+
+def format_predicate_summary(predicate: dict) -> str:
+    lines = []
+    for p in predicate.get("predicates", []):
+        key = p.get("key", "")
+        if key in _SKIP_KEYS:
+            continue
+        label = _KEY_LABEL.get(key, key.replace("_", " ").title())
+        ptype = p.get("type")
+        if ptype == "equals":
+            lines.append(f"  {label}: {p['value']}")
+        elif ptype == "in":
+            values = p.get("values", [])
+            if key == "MONTH":
+                values = [_MONTH_ABBR[int(v) - 1] for v in values]
+            lines.append(f"  {label}: {', '.join(str(v) for v in values)}")
+        elif ptype == "within":
+            lines.append("  Geometry: polygon filter active")
+        elif ptype in _OP_SYMBOL:
+            lines.append(f"  {label}: {_OP_SYMBOL[ptype]} {p['value']}")
+    return "\n".join(lines) if lines else "  (no additional filters)"

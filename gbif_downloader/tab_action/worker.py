@@ -1,4 +1,5 @@
 from qgis.PyQt.QtCore import QThread, pyqtSignal
+from ..gbif_api import get_credentials, submit_predicate_download
 
 
 class SubmitWorker(QThread):
@@ -12,12 +13,11 @@ class SubmitWorker(QThread):
         self._notify    = send_notification
 
     def run(self):
-        from ..gbif_api import get_credentials, submit_predicate_download
         username, password = get_credentials()
         if not username:
             self.error.emit(
                 "No GBIF credentials configured. "
-                "Use the dropdown → Configure GBIF Credentials."
+                "Use the dropdown -> Configure GBIF Credentials."
             )
             return
         try:
