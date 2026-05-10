@@ -101,6 +101,7 @@ class AccordionSection(QWidget):
 
         self._panel = QWidget()
         self._panel.setAutoFillBackground(True)
+        self._panel.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self._panel.setVisible(False)
 
         self._content_layout = QGridLayout(self._panel)

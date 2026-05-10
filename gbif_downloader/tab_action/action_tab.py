@@ -13,6 +13,7 @@ from .accordion import (
     CheckboxFilterSection,
     YearFilterSection,
 )
+from .country_filter import CountryFilterSection
 from .geometry_filter import GeometryFilterSection
 from .predicate import build_predicate, format_predicate_summary
 from .polygon_tool import PolygonTool
@@ -62,22 +63,7 @@ class ActionTab(QWidget, FORM_CLASS):
         )
         self._params_layout.insertRow(1, self._basis_section)
 
-        self._params_layout.removeRow(self.country_combo)
-        self._country_section = CheckboxFilterSection(
-            "Country",
-            [
-                ("Australia",     "AU"),
-                ("Brazil",        "BR"),
-                ("Canada",        "CA"),
-                ("Germany",       "DE"),
-                ("Indonesia",     "ID"),
-                ("India",         "IN"),
-                ("Mexico",        "MX"),
-                ("United States", "US"),
-                ("South Africa",  "ZA"),
-            ],
-            columns=2,
-        )
+        self._country_section = CountryFilterSection()
         self._params_layout.insertRow(2, self._country_section)
 
         self._year_section = YearFilterSection()
@@ -156,8 +142,7 @@ class ActionTab(QWidget, FORM_CLASS):
         return checked if 0 < len(checked) < 9 else []
 
     def _get_country_filter(self) -> list[str]:
-        checked = self._country_section.get_checked_values()
-        return checked if 0 < len(checked) < 9 else []
+        return self._country_section.get_selected_countries()
 
     def _submit(self):
         has_filter = any([

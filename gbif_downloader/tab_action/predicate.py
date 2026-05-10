@@ -6,6 +6,7 @@ from qgis.core import (
     QgsWkbTypes,
 )
 
+from gbif_downloader.tab_action.countries import COUNTRIES
 from gbif_downloader.tab_action.taxon_filter import Taxon
 
 _WGS84 = QgsCoordinateReferenceSystem("EPSG:4326")
@@ -122,6 +123,7 @@ _KEY_LABEL = {
     "MONTH": "Month",
 }
 _SKIP_KEYS = {"HAS_COORDINATE", "HAS_GEOSPATIAL_ISSUE"}
+_COUNTRY_LABEL_BY_CODE = {code: name for name, code in COUNTRIES}
 
 
 def format_predicate_summary(predicate: dict) -> str:
@@ -138,6 +140,11 @@ def format_predicate_summary(predicate: dict) -> str:
             values = p.get("values", [])
             if key == "MONTH":
                 values = [_MONTH_ABBR[int(v) - 1] for v in values]
+            elif key == "COUNTRY":
+                values = [
+                    f"{_COUNTRY_LABEL_BY_CODE.get(v, v)} ({v})"
+                    for v in values
+                ]
             lines.append(f"  {label}: {', '.join(str(v) for v in values)}")
         elif ptype == "within":
             lines.append("  Geometry: polygon filter active")

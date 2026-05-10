@@ -88,16 +88,6 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_country">
-        <property name="text">
-         <string>Country:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QComboBox" name="country_combo"/>
-      </item>
       <item row="2" column="0">
        <widget class="QLabel" name="label_basis">
         <property name="text">
