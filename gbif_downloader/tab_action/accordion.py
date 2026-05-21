@@ -1,5 +1,6 @@
 import datetime
 
+from .styles import ACTION_BTN_STYLE, ACTIVE_HEADER_STYLE, HEADER_STYLE
 from qgis.PyQt.QtCore import (
     Qt,
     pyqtSignal,
@@ -17,53 +18,6 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
-_HEADER_STYLE = """
-QToolButton {
-    font-weight: bold;
-    padding: 4px 8px;
-    border: none;
-    border-radius: 3px;
-    border-bottom: 1px solid transparent;
-    background: transparent;
-    text-align: left;
-}
-QToolButton:hover { background-color: rgba(0, 0, 0, 18); }
-QToolButton:checked {
-    border-bottom-color: #aaaaaa;
-    border-bottom-right-radius: 0;
-    border-bottom-left-radius: 0;
-}
-"""
-
-_ACTIVE_HEADER_STYLE = """
-QToolButton {
-    font-weight: bold;
-    padding: 4px 8px;
-    border: none;
-    border-radius: 3px;
-    border-bottom: 1px solid transparent;
-    background: rgba(76, 175, 80, 22);
-    text-align: left;
-}
-QToolButton:hover { background-color: rgba(76, 175, 80, 45); }
-QToolButton:checked {
-    border-bottom-color: #88bb88;
-    border-bottom-right-radius: 0;
-    border-bottom-left-radius: 0;
-}
-"""
-
-ACTION_BTN_STYLE = """
-QPushButton {
-    border: 1px solid #888888;
-    border-radius: 3px;
-    padding: 2px 8px;
-    font-size: 11px;
-}
-QPushButton:hover { background-color: rgba(0, 0, 0, 18); }
-QPushButton:pressed { background-color: rgba(0, 0, 0, 35); }
-"""
 
 
 class AccordionSection(QWidget):
@@ -96,7 +50,7 @@ class AccordionSection(QWidget):
         self._header.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self._header.setAutoRaise(False)
         self._header.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self._header.setStyleSheet(_HEADER_STYLE)
+        self._header.setStyleSheet(HEADER_STYLE)
         self._header.toggled.connect(self._on_toggle)
 
         self._panel = QWidget()
@@ -125,7 +79,7 @@ class AccordionSection(QWidget):
         self._header.setChecked(expanded)
 
     def set_active(self, active: bool):
-        self._header.setStyleSheet(_ACTIVE_HEADER_STYLE if active else _HEADER_STYLE)
+        self._header.setStyleSheet(ACTIVE_HEADER_STYLE if active else HEADER_STYLE)
         border = "#88bb88" if active else "#aaaaaa"
         self._frame.setStyleSheet(
             f"QFrame#accordionFrame {{ border: 1px solid {border}; border-radius: 3px; }}"

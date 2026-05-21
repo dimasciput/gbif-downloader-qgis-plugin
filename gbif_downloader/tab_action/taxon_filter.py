@@ -67,7 +67,6 @@ class ScientificNameFilterSection(AccordionSection):
     """AccordionSection with GBIF Species API autocomplete for scientific names."""
 
     _SUGGEST_URL = "https://api.gbif.org/v1/species/suggest"
-    suggestion_keys = {}
 
     def __init__(self, parent=None):
         super().__init__("Scientific name", parent)
@@ -75,6 +74,8 @@ class ScientificNameFilterSection(AccordionSection):
         self._manager = QNetworkAccessManager(self)
         self._reply = None
         self._pending_query = ""
+        self._suggestion_keys: dict[str, str] = {}
+        self._selected_taxon: Taxon | None = None
 
         layout = self.content_layout
 
@@ -108,6 +109,7 @@ class ScientificNameFilterSection(AccordionSection):
         self.toggled.connect(lambda _: self._update_active())
 
     def _on_text_edited(self, text: str):
+        self._selected_taxon = None
         self._pending_query = text.strip()
         if len(self._pending_query) < 3:
             self._timer.stop()
@@ -156,7 +158,7 @@ class ScientificNameFilterSection(AccordionSection):
             seen = set()
             try:
                 suggestions = json.loads(data)
-                self.suggestion_keys = {}
+                self._suggestion_keys = {}
             except ValueError:
                 self._model.clear()
                 return
@@ -167,7 +169,7 @@ class ScientificNameFilterSection(AccordionSection):
                     seen.add(name)
                     rank = (item.get("rank") or "").replace("_", " ").title()
                     names.append((name, f"{name}\n{rank}" if rank else name))
-                    self.suggestion_keys[name] = item.get('key')
+                    self._suggestion_keys[name] = item.get('key')
             self._set_suggestions(names)
             if names and self._edit.hasFocus():
                 self._completer.complete()
@@ -177,7 +179,11 @@ class ScientificNameFilterSection(AccordionSection):
                 self._reply = None
 
     def _apply_completion(self, value: str):
-        self._edit.setText(value.split("\n", 1)[0].strip())
+        name = value.split("\n", 1)[0].strip()
+        self._edit.setText(name)
+        key = self._suggestion_keys.get(name, "")
+        self._selected_taxon = Taxon(name, key)
+        self._update_active()
 
     def _set_suggestions(self, suggestions: list[tuple[str, str]]):
         self._model.clear()
@@ -187,20 +193,15 @@ class ScientificNameFilterSection(AccordionSection):
             self._model.appendRow(item)
 
     def _clear(self):
+        self._selected_taxon = None
         self._edit.clear()
         self._model.clear()
         self._update_active()
 
     def _update_active(self):
-        self.set_active(self.is_expanded() and bool(self.get_selected_taxon()))
+        self.set_active(self._selected_taxon is not None)
 
-    def get_selected_taxon(self) -> Taxon:
-        """Return the selected/entered scientific name, or empty string for no filter."""
-        if not self.is_expanded():
-            return None
-        scientific_name = self._edit.text().strip()
-        taxon_key = ''
-        if scientific_name in self.suggestion_keys:
-            taxon_key = self.suggestion_keys[scientific_name]
-        return Taxon(scientific_name, taxon_key)
+    def get_selected_taxon(self) -> Taxon | None:
+        """Return the selected taxon, or None for no filter."""
+        return self._selected_taxon
     
