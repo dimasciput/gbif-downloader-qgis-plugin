@@ -24,6 +24,7 @@ from .cache import (
 from .helpers import PENDING, POLL_MS, STATUSES
 from .styling import apply_iucn_style
 from .widgets import DownloadItemWidget
+from .report_worker import ReportWorker
 from .workers import CancelWorker, DownloadWorker, FetchPageWorker, PollWorker
 
 PAGE_LIMIT = 50
@@ -72,6 +73,7 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self._poll_worker      = None
         self._download_workers = []
         self._cancel_workers   = []
+        self._report_workers   = []
 
         cached = load_page_cache(
             0, self._page_limit,
@@ -332,6 +334,28 @@ class DownloadsTab(QWidget, FORM_CLASS):
             self.status_label.setText(f"Saved: {os.path.basename(path)}")
         self.status_label.setStyleSheet("color: green;")
         self._download_workers = [w for w in self._download_workers if w.isRunning()]
+
+    def _generate_report(self, url: str, key: str):
+        self.status_label.setText("Generating report…")
+        self.status_label.setStyleSheet("color: grey;")
+        w = ReportWorker(key, url)
+        w.progress.connect(lambda msg: self.status_label.setText(msg))
+        w.finished.connect(self._on_report_done)
+        w.error.connect(self._on_report_error)
+        self._report_workers.append(w)
+        w.start()
+
+    def _on_report_done(self, path: str):
+        from qgis.PyQt.QtGui import QDesktopServices
+        self.status_label.setText(f"Report saved: {os.path.basename(path)}")
+        self.status_label.setStyleSheet("color: green;")
+        QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
+        self._report_workers = [w for w in self._report_workers if w.isRunning()]
+
+    def _on_report_error(self, message: str):
+        self.status_label.setText(f"Report failed: {message}")
+        self.status_label.setStyleSheet("color: red;")
+        self._report_workers = [w for w in self._report_workers if w.isRunning()]
 
     def _on_error(self, message: str):
         self.refresh_btn.setEnabled(True)

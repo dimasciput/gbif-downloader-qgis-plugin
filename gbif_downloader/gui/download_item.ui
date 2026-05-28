@@ -231,6 +231,22 @@
            </widget>
           </item>
           <item>
+           <widget class="QPushButton" name="report_btn">
+            <property name="minimumSize">
+             <size>
+              <width>50</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Generate PDF report</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="cancel_btn">
             <property name="minimumSize">
              <size>

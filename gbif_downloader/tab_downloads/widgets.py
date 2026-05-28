@@ -96,17 +96,20 @@ class FilterItemWidget(QWidget, FILTER_ITEM_FORM_CLASS):
 
 
 class DetailDialog(DETAIL_BASE_CLASS, DETAIL_FORM_CLASS):
-    def __init__(self, data: dict, save_callback=None, parent=None):
+    def __init__(self, data: dict, save_callback=None, report_callback=None, parent=None):
         super().__init__(parent)
         self.setupUi(self)
-        self._save_callback  = save_callback
-        self._download_link  = ""
-        self._download_key   = ""
+        self._save_callback   = save_callback
+        self._report_callback = report_callback
+        self._download_link   = ""
+        self._download_key    = ""
         self.button_box.rejected.connect(self.reject)
         self.load_btn.setIcon(QgsApplication.getThemeIcon("/mActionAddOgrLayer.svg"))
         self.zip_btn.setIcon(QgsApplication.getThemeIcon("/mActionFileSave.svg"))
+        self.report_btn.setIcon(QgsApplication.getThemeIcon("/mActionFilePrint.svg"))
         self.load_btn.clicked.connect(lambda: self._save("map"))
         self.zip_btn.clicked.connect(lambda: self._save("zip"))
+        self.report_btn.clicked.connect(self._do_report)
         self._populate(data)
 
     def _populate(self, data: dict):
@@ -149,10 +152,15 @@ class DetailDialog(DETAIL_BASE_CLASS, DETAIL_FORM_CLASS):
         has_link = bool(self._download_link) and data.get("status", "") == "SUCCEEDED"
         self.load_btn.setVisible(has_link)
         self.zip_btn.setVisible(has_link)
+        self.report_btn.setVisible(has_link)
 
     def _save(self, fmt: str):
         if self._save_callback and self._download_link:
             self._save_callback(self._download_link, fmt, self._download_key)
+
+    def _do_report(self):
+        if self._report_callback:
+            self._report_callback()
 
     def _populate_filter_list(self, predicate):
         rows = _predicate_to_rows(predicate)
@@ -200,11 +208,13 @@ class DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
         self.load_btn.setIcon(QgsApplication.getThemeIcon("/mActionAddOgrLayer.svg"))
         self.zip_btn.setIcon(QgsApplication.getThemeIcon("/mActionFileSave.svg"))
         self.details_btn.setIcon(QgsApplication.getThemeIcon("/mActionIdentify.svg"))
+        self.report_btn.setIcon(QgsApplication.getThemeIcon("/mActionFilePrint.svg"))
         self.cancel_btn.setIcon(QgsApplication.getThemeIcon("/mActionDeleteSelectedFeatures.svg"))
 
         self.load_btn.clicked.connect(lambda: tab._save(self._download_link, "map", self._key))
         self.zip_btn.clicked.connect(lambda: tab._save(self._download_link, "zip", self._key))
         self.details_btn.clicked.connect(self._open_details)
+        self.report_btn.clicked.connect(lambda: tab._generate_report(self._download_link, self._key))
         self.cancel_btn.clicked.connect(lambda: tab._confirm_cancel(self._key))
 
         self.update_data(data)
@@ -213,7 +223,14 @@ class DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
         return self._status
 
     def _open_details(self):
-        dlg = DetailDialog(self._data, save_callback=self._tab._save, parent=self)
+        key = self._key
+        url = self._download_link
+        dlg = DetailDialog(
+            self._data,
+            save_callback=self._tab._save,
+            report_callback=lambda: self._tab._generate_report(url, key),
+            parent=self,
+        )
         dlg.exec()
 
     def update_data(self, data: dict):
@@ -257,4 +274,5 @@ class DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
         has_link = bool(self._download_link) and self._status == "SUCCEEDED"
         self.load_btn.setVisible(has_link)
         self.zip_btn.setVisible(has_link)
+        self.report_btn.setVisible(has_link)
         self.cancel_btn.setVisible(self._status in PENDING)
