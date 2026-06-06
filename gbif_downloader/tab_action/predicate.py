@@ -7,7 +7,13 @@ from qgis.core import (
 )
 
 from gbif_downloader.tab_action.countries import COUNTRIES
-from gbif_downloader.tab_action.taxon_filter import Taxon
+from gbif_downloader.tab_action.taxon_filter import HigherTaxon, Taxon
+
+_RANK_PREDICATE_KEY = {
+    "FAMILY":  "FAMILY_KEY",
+    "ORDER":   "ORDER_KEY",
+    "CLASS":   "CLASS_KEY",
+}
 
 _WGS84 = QgsCoordinateReferenceSystem("EPSG:4326")
 
@@ -73,6 +79,7 @@ def build_predicate(
     year_predicates: list | None = None,
     months: list | None = None,
     conservation_statuses: list | None = None,
+    higher_taxon: HigherTaxon | None = None,
 ) -> dict:
     parts = [
         {"type": "equals", "key": "HAS_COORDINATE",       "value": "true"},
@@ -105,6 +112,10 @@ def build_predicate(
         parts.append({"type": "in", "key": "MONTH", "values": [str(m) for m in months]})
     if conservation_statuses:
         parts.append({"type": "in", "key": "IUCN_RED_LIST_CATEGORY", "values": conservation_statuses})
+    if higher_taxon:
+        pred_key = _RANK_PREDICATE_KEY.get(higher_taxon.rank)
+        if pred_key:
+            parts.append({"type": "equals", "key": pred_key, "value": higher_taxon.key})
 
     return {"type": "and", "predicates": parts}
 
@@ -120,6 +131,11 @@ _OP_SYMBOL = {
 _KEY_LABEL = {
     "TAXON_KEY": "Taxon key",
     "SCIENTIFIC_NAME": "Scientific name",
+    "FAMILY_KEY":  "Family",
+    "ORDER_KEY":   "Order",
+    "CLASS_KEY":   "Class",
+    "PHYLUM_KEY":  "Phylum",
+    "KINGDOM_KEY": "Kingdom",
     "COUNTRY": "Country",
     "BASIS_OF_RECORD": "Basis of record",
     "YEAR": "Year",

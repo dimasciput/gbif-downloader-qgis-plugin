@@ -7,7 +7,7 @@ from qgis.PyQt.QtWidgets import (
     QMessageBox
 )
 
-from gbif_downloader.tab_action.taxon_filter import ScientificNameFilterSection
+from gbif_downloader.tab_action.taxon_filter import HigherTaxonFilterSection, ScientificNameFilterSection
 
 from .accordion import (
     CheckboxFilterSection,
@@ -45,6 +45,9 @@ class ActionTab(QWidget, FORM_CLASS):
         self._taxon_filter = ScientificNameFilterSection()
         self._params_layout.insertRow(0, self._taxon_filter)
 
+        self._higher_taxon_section = HigherTaxonFilterSection()
+        self._params_layout.insertRow(1, self._higher_taxon_section)
+
         self._params_layout.removeRow(self.basis_combo)
         self._basis_section = CheckboxFilterSection(
             "Basis of record",
@@ -61,13 +64,24 @@ class ActionTab(QWidget, FORM_CLASS):
             ],
             columns=2,
         )
-        self._params_layout.insertRow(1, self._basis_section)
+        self._params_layout.insertRow(2, self._basis_section)
 
         self._country_section = CountryFilterSection()
-        self._params_layout.insertRow(2, self._country_section)
+        self._params_layout.insertRow(3, self._country_section)
 
         self._year_section = YearFilterSection()
-        self._params_layout.insertRow(3, self._year_section)
+        self._params_layout.insertRow(4, self._year_section)
+
+        self._month_section = CheckboxFilterSection(
+            "Month",
+            [
+                ("Jan", 1), ("Feb", 2),  ("Mar", 3),  ("Apr", 4),
+                ("May", 5), ("Jun", 6),  ("Jul", 7),  ("Aug", 8),
+                ("Sep", 9), ("Oct", 10), ("Nov", 11), ("Dec", 12),
+            ],
+            columns=4,
+        )
+        self._params_layout.insertRow(5, self._month_section)
 
         self._conservation_section = CheckboxFilterSection(
             "Conservation status (IUCN)",
@@ -84,26 +98,15 @@ class ActionTab(QWidget, FORM_CLASS):
             ],
             columns=2,
         )
-        self._params_layout.insertRow(5, self._conservation_section)
+        self._params_layout.insertRow(6, self._conservation_section)
 
         self._params_layout.removeRow(self.format_combo)
         self._params_layout.removeRow(self.polygon_row)
         self._geometry_section = GeometryFilterSection(self._iface)
         self._geometry_section.set_draw_handlers(self._toggle_draw, self._stop_draw)
-        self._params_layout.insertRow(6, self._geometry_section)
+        self._params_layout.insertRow(7, self._geometry_section)
 
         self.submit_btn.clicked.connect(self._submit)
-
-        self._month_section = CheckboxFilterSection(
-            "Month",
-            [
-                ("Jan", 1), ("Feb", 2),  ("Mar", 3),  ("Apr", 4),
-                ("May", 5), ("Jun", 6),  ("Jul", 7),  ("Aug", 8),
-                ("Sep", 9), ("Oct", 10), ("Nov", 11), ("Dec", 12),
-            ],
-            columns=4,
-        )
-        self._params_layout.insertRow(4, self._month_section)
 
     def _toggle_draw(self):
         canvas = self._iface.mapCanvas()
@@ -165,9 +168,13 @@ class ActionTab(QWidget, FORM_CLASS):
     def _get_country_filter(self) -> list[str]:
         return self._country_section.get_selected_countries()
 
+    def _get_higher_taxon_filter(self):
+        return self._higher_taxon_section.get_selected()
+
     def _submit(self):
         has_filter = any([
             self._taxon_filter.get_selected_taxon(),
+            self._get_higher_taxon_filter(),
             self._get_country_filter(),
             self._get_basis_filter(),
             self._geometry_section.get_geometry_wkt(),
@@ -185,6 +192,7 @@ class ActionTab(QWidget, FORM_CLASS):
 
         predicate = build_predicate(
             taxon=self._taxon_filter.get_selected_taxon(),
+            higher_taxon=self._get_higher_taxon_filter(),
             country=self._get_country_filter(),
             basis=self._get_basis_filter(),
             geometry_wkt=self._geometry_section.get_geometry_wkt(),
