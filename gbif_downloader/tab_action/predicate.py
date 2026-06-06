@@ -80,6 +80,8 @@ def build_predicate(
     months: list | None = None,
     conservation_statuses: list | None = None,
     higher_taxon: HigherTaxon | None = None,
+    coordinate_uncertainty_predicates: list | None = None,
+    elevation_predicates: list | None = None,
 ) -> dict:
     parts = [
         {"type": "equals", "key": "HAS_COORDINATE",       "value": "true"},
@@ -116,6 +118,10 @@ def build_predicate(
         pred_key = _RANK_PREDICATE_KEY.get(higher_taxon.rank)
         if pred_key:
             parts.append({"type": "equals", "key": pred_key, "value": higher_taxon.key})
+    if coordinate_uncertainty_predicates:
+        parts.extend(coordinate_uncertainty_predicates)
+    if elevation_predicates:
+        parts.extend(elevation_predicates)
 
     return {"type": "and", "predicates": parts}
 
@@ -136,6 +142,8 @@ _KEY_LABEL = {
     "CLASS_KEY":   "Class",
     "PHYLUM_KEY":  "Phylum",
     "KINGDOM_KEY": "Kingdom",
+    "COORDINATE_UNCERTAINTY_IN_METERS": "Coord. uncertainty (m)",
+    "ELEVATION": "Elevation (m)",
     "COUNTRY": "Country",
     "BASIS_OF_RECORD": "Basis of record",
     "YEAR": "Year",

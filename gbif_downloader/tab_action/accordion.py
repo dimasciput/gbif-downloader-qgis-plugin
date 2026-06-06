@@ -256,3 +256,99 @@ class YearFilterSection(AccordionSection):
         if mode == "after":
             return [{"type": "greaterThanOrEquals", "key": "YEAR", "value": str(y1)}]
         return []
+
+
+class NumericRangeFilterSection(AccordionSection):
+    """AccordionSection with a mode dropdown and one or two numeric spinboxes."""
+
+    _MODES = [
+        ("No filter", "none"),
+        ("At most",   "atmost"),
+        ("At least",  "atleast"),
+        ("Between",   "between"),
+    ]
+
+    def __init__(
+        self,
+        title: str,
+        key: str,
+        min_val: int,
+        max_val: int,
+        step: int = 1,
+        default_from: int | None = None,
+        default_to: int | None = None,
+        description: str = "",
+        parent=None,
+    ):
+        super().__init__(title, description=description, parent=parent)
+        self._key = key
+
+        layout = self.content_layout
+
+        self._mode_combo = QComboBox()
+        for label, _ in self._MODES:
+            self._mode_combo.addItem(label)
+        layout.addWidget(self._mode_combo, 0, 0, 1, 4)
+
+        self._spin_from = QSpinBox()
+        self._spin_from.setRange(min_val, max_val)
+        self._spin_from.setSingleStep(step)
+        self._spin_from.setValue(default_from if default_from is not None else min_val)
+
+        self._label_to = QLabel("to")
+        self._label_to.setAlignment(Qt.AlignCenter)
+
+        self._spin_to = QSpinBox()
+        self._spin_to.setRange(min_val, max_val)
+        self._spin_to.setSingleStep(step)
+        self._spin_to.setValue(default_to if default_to is not None else max_val)
+
+        clear_btn = QPushButton("Clear")
+        clear_btn.setStyleSheet(ACTION_BTN_STYLE)
+
+        layout.addWidget(self._spin_from, 1, 0)
+        layout.addWidget(self._label_to,  1, 1)
+        layout.addWidget(self._spin_to,   1, 2)
+        layout.addWidget(clear_btn,       1, 3)
+
+        self._mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        clear_btn.clicked.connect(self._clear)
+        self.toggled.connect(lambda _: self._update_active())
+        self._on_mode_changed(0)
+
+    def _mode_key(self) -> str:
+        return self._MODES[self._mode_combo.currentIndex()][1]
+
+    def _update_active(self):
+        self.set_active(self._mode_key() != "none")
+
+    def _on_mode_changed(self, _index: int = 0):
+        mode = self._mode_key()
+        has_input = mode != "none"
+        is_between = mode == "between"
+        self._spin_from.setVisible(has_input)
+        self._label_to.setVisible(is_between)
+        self._spin_to.setVisible(is_between)
+        self._update_active()
+
+    def _clear(self):
+        self._mode_combo.setCurrentIndex(0)
+
+    def get_predicate(self) -> list[dict]:
+        """Return GBIF predicate parts for this filter, or [] for no filter."""
+        mode = self._mode_key()
+        if mode == "none":
+            return []
+        v1 = self._spin_from.value()
+        v2 = self._spin_to.value()
+        if mode == "atmost":
+            return [{"type": "lessThanOrEquals", "key": self._key, "value": str(v1)}]
+        if mode == "atleast":
+            return [{"type": "greaterThanOrEquals", "key": self._key, "value": str(v1)}]
+        if mode == "between":
+            lo, hi = min(v1, v2), max(v1, v2)
+            return [
+                {"type": "greaterThanOrEquals", "key": self._key, "value": str(lo)},
+                {"type": "lessThanOrEquals",    "key": self._key, "value": str(hi)},
+            ]
+        return []

@@ -12,6 +12,7 @@ from gbif_downloader.tab_action.taxon_filter import HigherTaxonFilterSection, Sc
 
 from .accordion import (
     CheckboxFilterSection,
+    NumericRangeFilterSection,
     YearFilterSection,
 )
 from .country_filter import CountryFilterSection
@@ -79,6 +80,34 @@ class ActionTab(QWidget, FORM_CLASS):
         self._year_section = YearFilterSection()
         self._params_layout.insertRow(4, self._year_section)
 
+        self._coord_uncertainty_section = NumericRangeFilterSection(
+            "Coordinate uncertainty",
+            "COORDINATE_UNCERTAINTY_IN_METERS",
+            min_val=0,
+            max_val=200000,
+            step=100,
+            default_from=0,
+            default_to=1000,
+            description=(
+                "The horizontal distance (in metres) from the given decimalLatitude and "
+                "decimalLongitude describing the smallest circle containing the whole of "
+                "the Location. Supports range queries."
+            ),
+        )
+        self._params_layout.insertRow(5, self._coord_uncertainty_section)
+
+        self._elevation_section = NumericRangeFilterSection(
+            "Elevation",
+            "ELEVATION",
+            min_val=-500,
+            max_val=8849,
+            step=10,
+            default_from=0,
+            default_to=1000,
+            description="Elevation (altitude) in metres above sea level. Supports range queries.",
+        )
+        self._params_layout.insertRow(6, self._elevation_section)
+
         self._month_section = CheckboxFilterSection(
             "Month",
             [
@@ -89,7 +118,7 @@ class ActionTab(QWidget, FORM_CLASS):
             columns=4,
             description="The ordinal month in which the event occurred.",
         )
-        self._params_layout.insertRow(5, self._month_section)
+        self._params_layout.insertRow(7, self._month_section)
 
         self._conservation_section = CheckboxFilterSection(
             "Conservation status (IUCN)",
@@ -107,13 +136,13 @@ class ActionTab(QWidget, FORM_CLASS):
             columns=2,
             description="The IUCN Red List Category of the taxon at the time of the occurrence.",
         )
-        self._params_layout.insertRow(6, self._conservation_section)
+        self._params_layout.insertRow(8, self._conservation_section)
 
         self._params_layout.removeRow(self.format_combo)
         self._params_layout.removeRow(self.polygon_row)
         self._geometry_section = GeometryFilterSection(self._iface)
         self._geometry_section.set_draw_handlers(self._toggle_draw, self._stop_draw)
-        self._params_layout.insertRow(7, self._geometry_section)
+        self._params_layout.insertRow(9, self._geometry_section)
 
         self.submit_btn.clicked.connect(self._submit)
 
@@ -183,6 +212,8 @@ class ActionTab(QWidget, FORM_CLASS):
         self._basis_section._clear_all()
         self._country_section._clear()
         self._year_section._clear()
+        self._coord_uncertainty_section._clear()
+        self._elevation_section._clear()
         self._month_section._clear_all()
         self._conservation_section._clear_all()
         self._stop_draw()
@@ -199,6 +230,8 @@ class ActionTab(QWidget, FORM_CLASS):
             self._get_basis_filter(),
             self._geometry_section.get_geometry_wkt(),
             self._year_section.get_year_predicate(),
+            self._coord_uncertainty_section.get_predicate(),
+            self._elevation_section.get_predicate(),
             self._get_month_filter(),
             self._get_conservation_filter(),
         ])
@@ -217,6 +250,8 @@ class ActionTab(QWidget, FORM_CLASS):
             basis=self._get_basis_filter(),
             geometry_wkt=self._geometry_section.get_geometry_wkt(),
             year_predicates=self._year_section.get_year_predicate(),
+            coordinate_uncertainty_predicates=self._coord_uncertainty_section.get_predicate(),
+            elevation_predicates=self._elevation_section.get_predicate(),
             months=self._get_month_filter(),
             conservation_statuses=self._get_conservation_filter(),
         )
