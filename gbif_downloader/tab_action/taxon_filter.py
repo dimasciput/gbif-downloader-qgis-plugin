@@ -88,7 +88,11 @@ class ScientificNameFilterSection(AccordionSection):
     _SUGGEST_URL = "https://api.gbif.org/v1/species/suggest"
 
     def __init__(self, parent=None):
-        super().__init__("Scientific name", parent)
+        super().__init__(
+            "Scientific name",
+            description="Scientific name of the occurrence as determined by the identifier.",
+            parent=parent,
+        )
 
         self._manager = QNetworkAccessManager(self)
         self._reply = None
@@ -231,7 +235,11 @@ class HigherTaxonFilterSection(AccordionSection):
     _SUGGEST_URL = "https://api.gbif.org/v1/species/suggest"
 
     def __init__(self, parent=None):
-        super().__init__("Higher taxonomy", parent)
+        super().__init__(
+            "Higher taxonomy",
+            description="A higher-rank taxon (family, order, or class) to filter occurrences by.",
+            parent=parent,
+        )
 
         self._manager = QNetworkAccessManager(self)
         self._reply = None

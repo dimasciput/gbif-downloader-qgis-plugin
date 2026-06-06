@@ -69,6 +69,7 @@ class ActionTab(QWidget, FORM_CLASS):
                 ("Occurrence",           "OCCURRENCE"),
             ],
             columns=2,
+            description="Basis of record, as defined in our BasisOfRecord vocabulary.",
         )
         self._params_layout.insertRow(2, self._basis_section)
 
@@ -86,6 +87,7 @@ class ActionTab(QWidget, FORM_CLASS):
                 ("Sep", 9), ("Oct", 10), ("Nov", 11), ("Dec", 12),
             ],
             columns=4,
+            description="The ordinal month in which the event occurred.",
         )
         self._params_layout.insertRow(5, self._month_section)
 
@@ -103,6 +105,7 @@ class ActionTab(QWidget, FORM_CLASS):
                 ("Not Evaluated",             "NE"),
             ],
             columns=2,
+            description="The IUCN Red List Category of the taxon at the time of the occurrence.",
         )
         self._params_layout.insertRow(6, self._conservation_section)
 

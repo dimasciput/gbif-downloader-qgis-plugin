@@ -26,7 +26,7 @@ class AccordionSection(QWidget):
 
     toggled = pyqtSignal(bool)
 
-    def __init__(self, title: str, parent=None):
+    def __init__(self, title: str, description: str = "", parent=None):
         super().__init__(parent)
 
         outer = QVBoxLayout(self)
@@ -58,10 +58,24 @@ class AccordionSection(QWidget):
         self._panel.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self._panel.setVisible(False)
 
-        self._content_layout = QGridLayout(self._panel)
+        panel_layout = QVBoxLayout(self._panel)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
+        panel_layout.setSpacing(0)
+
+        if description:
+            desc_label = QLabel(description)
+            desc_label.setWordWrap(True)
+            desc_label.setStyleSheet(
+                "color: #888; font-size: 12px; padding: 4px 8px 2px 18px;"
+            )
+            panel_layout.addWidget(desc_label)
+
+        _content_widget = QWidget()
+        self._content_layout = QGridLayout(_content_widget)
         self._content_layout.setContentsMargins(20, 6, 8, 6)
         self._content_layout.setHorizontalSpacing(12)
         self._content_layout.setVerticalSpacing(4)
+        panel_layout.addWidget(_content_widget)
 
         frame_layout.addWidget(self._header)
         frame_layout.addWidget(self._panel)
@@ -105,9 +119,10 @@ class CheckboxFilterSection(AccordionSection):
         title: str,
         items: list[tuple[str, object]],
         columns: int = 4,
+        description: str = "",
         parent=None,
     ):
-        super().__init__(title, parent)
+        super().__init__(title, description=description, parent=parent)
         self._checkboxes: list[tuple[QCheckBox, object]] = []
 
         layout = self.content_layout
@@ -161,7 +176,11 @@ class YearFilterSection(AccordionSection):
     ]
 
     def __init__(self, parent=None):
-        super().__init__("Year", parent)
+        super().__init__(
+            "Year",
+            description="The four-digit year in which the event occurred, following ISO 8601.",
+            parent=parent,
+        )
         current_year = datetime.date.today().year
 
         layout = self.content_layout

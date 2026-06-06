@@ -15,7 +15,11 @@ class GeometryFilterSection(AccordionSection):
     """AccordionSection for drawn or active-layer geometry filters."""
 
     def __init__(self, iface, parent=None):
-        super().__init__("Geometry", parent)
+        super().__init__(
+            "Geometry",
+            description="Filters occurrences that fall within the given polygon geometry.",
+            parent=parent,
+        )
         self._iface = iface
         self._geometry_wkt = ""
         self._rubber_band = None

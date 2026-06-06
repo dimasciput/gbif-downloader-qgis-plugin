@@ -26,7 +26,11 @@ class CountryFilterSection(AccordionSection):
     """AccordionSection with autocomplete and multi-select country chips."""
 
     def __init__(self, parent=None):
-        super().__init__("Country", parent)
+        super().__init__(
+            "Country",
+            description="The country or area in which the occurrence was recorded, as defined in our Country vocabulary.",
+            parent=parent,
+        )
         self._selected_codes = set()
         self._country_by_code = {code: name for name, code in COUNTRIES}
         self._code_by_display = {}
