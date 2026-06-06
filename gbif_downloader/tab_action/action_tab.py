@@ -4,7 +4,8 @@ from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtWidgets import (
     QWidget,
-    QMessageBox
+    QMessageBox,
+    QPushButton,
 )
 
 from gbif_downloader.tab_action.taxon_filter import HigherTaxonFilterSection, ScientificNameFilterSection
@@ -39,6 +40,11 @@ class ActionTab(QWidget, FORM_CLASS):
         self.status_label.setTextInteractionFlags(
             Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
         )
+
+        self._clear_all_btn = QPushButton("Clear All Filters")
+        self.bottomLayout.insertWidget(2, self._clear_all_btn)
+        self._clear_all_btn.clicked.connect(self._clear_all_filters)
+
         self._params_layout = self.formLayout
 
         self._params_layout.removeRow(self.species_edit)
@@ -168,6 +174,17 @@ class ActionTab(QWidget, FORM_CLASS):
     def _get_country_filter(self) -> list[str]:
         return self._country_section.get_selected_countries()
 
+    def _clear_all_filters(self):
+        self._taxon_filter._clear()
+        self._higher_taxon_section._clear()
+        self._basis_section._clear_all()
+        self._country_section._clear()
+        self._year_section._clear()
+        self._month_section._clear_all()
+        self._conservation_section._clear_all()
+        self._stop_draw()
+        self._geometry_section.clear_geometry()
+
     def _get_higher_taxon_filter(self):
         return self._higher_taxon_section.get_selected()
 
@@ -227,6 +244,7 @@ class ActionTab(QWidget, FORM_CLASS):
         self.status_label.setText(f"Queued ✓  Download key: {key}")
         self.status_label.setStyleSheet("color: green;")
         self.download_submitted.emit(key)
+        self._clear_all_filters()
 
     def _on_error(self, message: str):
         self.submit_btn.setEnabled(True)
