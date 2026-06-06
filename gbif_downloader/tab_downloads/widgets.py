@@ -106,7 +106,7 @@ class DetailDialog(DETAIL_BASE_CLASS, DETAIL_FORM_CLASS):
         self.button_box.rejected.connect(self.reject)
         self.load_btn.setIcon(QgsApplication.getThemeIcon("/mActionAddOgrLayer.svg"))
         self.zip_btn.setIcon(QgsApplication.getThemeIcon("/mActionFileSave.svg"))
-        self.report_btn.setIcon(QgsApplication.getThemeIcon("/mActionFilePrint.svg"))
+        self.report_btn.setIcon(QgsApplication.getThemeIcon("/mActionSaveAsPDF.svg"))
         self.load_btn.clicked.connect(lambda: self._save("map"))
         self.zip_btn.clicked.connect(lambda: self._save("zip"))
         self.report_btn.clicked.connect(self._do_report)
@@ -208,7 +208,7 @@ class DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
         self.load_btn.setIcon(QgsApplication.getThemeIcon("/mActionAddOgrLayer.svg"))
         self.zip_btn.setIcon(QgsApplication.getThemeIcon("/mActionFileSave.svg"))
         self.details_btn.setIcon(QgsApplication.getThemeIcon("/mActionIdentify.svg"))
-        self.report_btn.setIcon(QgsApplication.getThemeIcon("/mActionFilePrint.svg"))
+        self.report_btn.setIcon(QgsApplication.getThemeIcon("/mActionSaveAsPDF.svg"))
         self.cancel_btn.setIcon(QgsApplication.getThemeIcon("/mActionDeleteSelectedFeatures.svg"))
 
         self.load_btn.clicked.connect(lambda: tab._save(self._download_link, "map", self._key))

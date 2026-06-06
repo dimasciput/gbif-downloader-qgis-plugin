@@ -27,8 +27,14 @@ _IUCN_LABEL = {
 
 _DPI    = 150
 _MM_PX  = _DPI / 25.4
-_MARGIN = int(15 * _MM_PX)          # ≈ 89 px
-_W      = int(210 * _MM_PX) - 2 * _MARGIN   # ≈ 1062 px
+_MARGIN = int(15 * _MM_PX)
+_W      = int(210 * _MM_PX) - 2 * _MARGIN
+_TITLE_BOTTOM_PADDING = 20
+_SECTION_PADDING = 50
+_PIE_COLORS = [
+    "#4e79a7", "#f28e6b", "#76b7b2", "#af7aa1", "#edc76f",
+    "#59a14f", "#9c755f", "#6f8fd2", "#d887b5", "#86bc86",
+]
 
 
 class ReportWorker(QThread):
@@ -163,7 +169,7 @@ def _draw_report(p: QPainter, key: str, stats: dict):
     p.setFont(QFont("Arial", 16, QFont.Bold))
     p.setPen(QColor("#1a3a6b"))
     p.drawText(0, y, W, 42, Qt.AlignLeft | Qt.AlignVCenter, "GBIF Occurrence Report")
-    y += 42
+    y += 42 + _TITLE_BOTTOM_PADDING
 
     p.setFont(QFont("Arial", 8))
     p.setPen(QColor("#888888"))
@@ -171,16 +177,16 @@ def _draw_report(p: QPainter, key: str, stats: dict):
     p.drawText(0, y, W, 18, Qt.AlignLeft | Qt.AlignVCenter, meta)
     y += 20
 
-    _hline(p, W, y); y += 14
+    _hline(p, W, y); y += _SECTION_PADDING
 
     y = _draw_summary_cards(p, W, y, stats)
-    _hline(p, W, y); y += 14
+    _hline(p, W, y); y += _SECTION_PADDING
 
     y = _draw_year_chart(p, W, y, stats)
-    _hline(p, W, y); y += 14
+    _hline(p, W, y); y += _SECTION_PADDING
 
     y = _draw_iucn_chart(p, W, y, stats)
-    _hline(p, W, y); y += 14
+    _hline(p, W, y); y += _SECTION_PADDING
 
     _draw_bottom_cols(p, W, y, stats)
 
@@ -194,7 +200,7 @@ def _section_title(p: QPainter, W: int, y: int, text: str) -> int:
     p.setFont(QFont("Arial", 10, QFont.Bold))
     p.setPen(QColor("#333333"))
     p.drawText(0, y, W, 22, Qt.AlignLeft | Qt.AlignVCenter, text)
-    return y + 24
+    return y + 24 + _TITLE_BOTTOM_PADDING
 
 
 def _draw_summary_cards(p: QPainter, W: int, y: int, stats: dict) -> int:
@@ -217,7 +223,7 @@ def _draw_summary_cards(p: QPainter, W: int, y: int, stats: dict) -> int:
         x = i * (cw + gap)
         p.setBrush(QColor("#f0f4f9"))
         p.setPen(QColor("#c0d0e0"))
-        p.drawRoundedRect(x, y, cw, ch, 4, 4)
+        p.drawRect(x, y, cw, ch)
         p.setFont(QFont("Arial", 13, QFont.Bold))
         p.setPen(QColor("#1a3a6b"))
         p.drawText(x + 8, y + 4, cw - 16, 30, Qt.AlignLeft | Qt.AlignVCenter, value)
@@ -299,7 +305,7 @@ def _draw_iucn_chart(p: QPainter, W: int, y: int, stats: dict) -> int:
     for i, (cat, cnt) in enumerate(present):
         ry    = y + i * ROW_H
         color = QColor(_IUCN_COLOR.get(cat, "#cccccc"))
-        lbl   = f"{cat}  —  {_IUCN_LABEL.get(cat, cat)}"
+        lbl   = f"{_IUCN_LABEL.get(cat, cat)}"
 
         p.setFont(QFont("Arial", 8))
         p.setPen(QColor("#444444"))
@@ -320,15 +326,15 @@ def _draw_iucn_chart(p: QPainter, W: int, y: int, stats: dict) -> int:
 
 def _draw_bottom_cols(p: QPainter, W: int, y: int, stats: dict):
     half = (W - 16) // 2
-    _draw_bar_col(p, 0,          half, y, "Top Species",   stats["top_species"])
-    _draw_bar_col(p, half + 16,  half, y, "Top Countries", stats["top_countries"])
+    _draw_pie_col(p, 0,          half, y, "Top Species",   stats["top_species"])
+    _draw_pie_col(p, half + 16,  half, y, "Top Countries", stats["top_countries"])
 
 
-def _draw_bar_col(p: QPainter, x: int, W: int, y: int, title: str, data: list):
+def _draw_pie_col(p: QPainter, x: int, W: int, y: int, title: str, data: list):
     p.setFont(QFont("Arial", 10, QFont.Bold))
     p.setPen(QColor("#333333"))
     p.drawText(x, y, W, 22, Qt.AlignLeft | Qt.AlignVCenter, title)
-    y += 24
+    y += 24 + _TITLE_BOTTOM_PADDING
 
     if not data:
         p.setFont(QFont("Arial", 8))
@@ -336,26 +342,49 @@ def _draw_bar_col(p: QPainter, x: int, W: int, y: int, title: str, data: list):
         p.drawText(x, y, W, 18, Qt.AlignLeft | Qt.AlignVCenter, "No data.")
         return
 
-    mx     = data[0][1]
-    LBL_W  = int(W * 0.40)
-    BAR_W  = int(W * 0.42)
-    CNT_W  = W - LBL_W - BAR_W - 4
-    ROW_H  = 18
+    total = sum(cnt for _, cnt in data)
+    pie_size = min(180, W // 3)
+    pie_y = y + 2
+    start_angle = 90 * 16
 
-    for name, cnt in data:
-        p.setFont(QFont("Arial", 7))
-        p.setPen(QColor("#333333"))
-        p.drawText(x, y, LBL_W - 4, ROW_H, Qt.AlignRight | Qt.AlignVCenter, name[:25])
+    for i, (_, cnt) in enumerate(data):
+        if i == len(data) - 1:
+            span_angle = (90 * 16 - 360 * 16) - start_angle
+        else:
+            span_angle = -round(360 * 16 * cnt / total)
+        p.setBrush(QColor(_PIE_COLORS[i % len(_PIE_COLORS)]))
+        p.setPen(QColor("#ffffff"))
+        p.drawPie(x, pie_y, pie_size, pie_size, start_angle, span_angle)
+        start_angle += span_angle
 
-        bw = max(2, int(BAR_W * cnt / mx)) if mx else 2
-        p.setBrush(QColor("#4a90d9"))
+    legend_x = x + pie_size + 14
+    legend_w = W - pie_size - 14
+    row_h = 18
+    swatch = 10
+    p.setFont(QFont("Arial", 7))
+    values = [f"{cnt:,} ({100 * cnt / total:.1f}%)" for _, cnt in data]
+    value_w = max(p.fontMetrics().horizontalAdvance(value) for value in values) + 6
+
+    for i, ((name, _), value) in enumerate(zip(data, values)):
+        row_y = y + i * row_h
+        color = QColor(_PIE_COLORS[i % len(_PIE_COLORS)])
+        p.setBrush(color)
         p.setPen(Qt.NoPen)
-        p.drawRect(x + LBL_W, y + 3, bw, ROW_H - 6)
+        p.drawRect(legend_x, row_y + 4, swatch, swatch)
 
-        p.setPen(QColor("#555555"))
-        p.setFont(QFont("Arial", 7))
-        p.drawText(x + LBL_W + bw + 3, y, CNT_W, ROW_H, Qt.AlignLeft | Qt.AlignVCenter, f"{cnt:,}")
-
-        y += ROW_H
+        p.setPen(QColor("#333333"))
+        name_x = legend_x + swatch + 5
+        name_w = max(20, legend_w - swatch - value_w - 9)
+        label = p.fontMetrics().elidedText(name, Qt.ElideRight, name_w)
+        p.drawText(name_x, row_y, name_w, row_h, Qt.AlignLeft | Qt.AlignVCenter, label)
+        p.setPen(QColor("#666666"))
+        p.drawText(
+            legend_x + legend_w - value_w,
+            row_y,
+            value_w,
+            row_h,
+            Qt.AlignRight | Qt.AlignVCenter,
+            value,
+        )
 
     p.setBrush(Qt.NoBrush)
