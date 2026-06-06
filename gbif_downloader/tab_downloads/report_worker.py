@@ -29,7 +29,7 @@ _DPI    = 150
 _MM_PX  = _DPI / 25.4
 _MARGIN = int(15 * _MM_PX)
 _W      = int(210 * _MM_PX) - 2 * _MARGIN
-_TITLE_BOTTOM_PADDING = 20
+_TITLE_BOTTOM_PADDING = 30
 _SECTION_PADDING = 50
 _PIE_COLORS = [
     "#4e79a7", "#f28e6b", "#76b7b2", "#af7aa1", "#edc76f",
@@ -100,6 +100,7 @@ class ReportWorker(QThread):
     def _parse(self, tsv_path: str) -> dict:
         year_counts    = Counter()
         iucn_counts    = Counter()
+        iucn_year_counts = Counter()
         species_counts = Counter()
         country_counts = Counter()
         basis_counts   = Counter()
@@ -123,6 +124,8 @@ class ReportWorker(QThread):
                 iucn = (row.get(iucn_f) or "").strip().upper() if iucn_f else ""
                 if iucn:
                     iucn_counts[iucn] += 1
+                    if yr.isdigit():
+                        iucn_year_counts[(int(yr), iucn)] += 1
                 sp = (row.get(species_f) or "").strip() if species_f else ""
                 if sp:
                     species_counts[sp] += 1
@@ -141,6 +144,7 @@ class ReportWorker(QThread):
                                  max(year_counts) if year_counts else None),
             "year_counts":      year_counts,
             "iucn_counts":      iucn_counts,
+            "iucn_year_counts": iucn_year_counts,
             "top_species":      species_counts.most_common(10),
             "top_countries":    country_counts.most_common(10),
             "basis_counts":     basis_counts,
@@ -185,7 +189,7 @@ def _draw_report(p: QPainter, key: str, stats: dict):
     y = _draw_year_chart(p, W, y, stats)
     _hline(p, W, y); y += _SECTION_PADDING
 
-    y = _draw_iucn_chart(p, W, y, stats)
+    y = _draw_iucn_charts(p, W, y, stats)
     _hline(p, W, y); y += _SECTION_PADDING
 
     _draw_bottom_cols(p, W, y, stats)
@@ -285,43 +289,123 @@ def _draw_year_chart(p: QPainter, W: int, y: int, stats: dict) -> int:
     return y + CH + 20
 
 
-def _draw_iucn_chart(p: QPainter, W: int, y: int, stats: dict) -> int:
-    y = _section_title(p, W, y, "IUCN Conservation Status")
+def _draw_iucn_charts(p: QPainter, W: int, y: int, stats: dict) -> int:
     ic = stats["iucn_counts"]
+    iyc = stats["iucn_year_counts"]
 
     present = [(cat, ic[cat]) for cat in _IUCN_ORDER if ic.get(cat, 0) > 0]
     if not present:
+        y = _section_title(p, W, y, "IUCN Conservation Status")
         p.setFont(QFont("Arial", 8))
         p.setPen(QColor("#888888"))
         p.drawText(0, y, W, 18, Qt.AlignLeft | Qt.AlignVCenter, "No IUCN data in this download.")
         return y + 22
 
-    mx      = max(c for _, c in present)
-    LBL_W   = 185
-    CNT_W   = 65
-    BAR_W   = W - LBL_W - CNT_W - 8
-    ROW_H   = 20
+    gap = 24
+    year_w = int(W * 0.66)
+    pie_x = year_w + gap
+    pie_w = W - pie_x
 
-    for i, (cat, cnt) in enumerate(present):
-        ry    = y + i * ROW_H
-        color = QColor(_IUCN_COLOR.get(cat, "#cccccc"))
-        lbl   = f"{_IUCN_LABEL.get(cat, cat)}"
+    p.setFont(QFont("Arial", 10, QFont.Bold))
+    p.setPen(QColor("#333333"))
+    p.drawText(0, y, year_w, 22, Qt.AlignLeft | Qt.AlignVCenter, "Conservation Status by Year")
+    p.drawText(pie_x, y, pie_w, 22, Qt.AlignLeft | Qt.AlignVCenter, "Overall Conservation Status")
+    y += 24 + _TITLE_BOTTOM_PADDING
 
-        p.setFont(QFont("Arial", 8))
-        p.setPen(QColor("#444444"))
-        p.drawText(0, ry, LBL_W - 6, ROW_H, Qt.AlignRight | Qt.AlignVCenter, lbl)
+    chart_h = 130
+    axis_w = 44
+    present_cats = [cat for cat, _ in present]
+    years = sorted({year for year, cat in iyc if cat in present_cats})
+    year_totals = {
+        year: sum(iyc[(year, cat)] for cat, _ in present)
+        for year in years
+    }
+    max_total = max(year_totals.values(), default=0)
+    chart_w = year_w - axis_w
 
-        bw = max(2, int(BAR_W * cnt / mx)) if mx else 2
-        p.setBrush(color)
-        p.setPen(Qt.NoPen)
-        p.drawRect(LBL_W, ry + 4, bw, ROW_H - 8)
-
-        p.setPen(QColor("#555555"))
+    if years and max_total:
+        bar_step = chart_w / len(years)
+        bar_w = max(1, int(bar_step) - 1)
         p.setFont(QFont("Arial", 7))
-        p.drawText(LBL_W + bw + 4, ry, CNT_W, ROW_H, Qt.AlignLeft | Qt.AlignVCenter, f"{cnt:,}")
+        for frac, label in [(1.0, f"{max_total:,}"), (0.5, f"{max_total // 2:,}"), (0.0, "0")]:
+            grid_y = y + int(chart_h * (1.0 - frac))
+            p.setPen(QColor("#eeeeee"))
+            p.drawLine(axis_w, grid_y, year_w, grid_y)
+            p.setPen(QColor("#888888"))
+            p.drawText(0, grid_y - 8, axis_w - 4, 16, Qt.AlignRight | Qt.AlignVCenter, label)
+
+        for i, year in enumerate(years):
+            bar_x = axis_w + int(i * bar_step)
+            bar_bottom = y + chart_h
+            cumulative = 0
+            for cat, _ in present:
+                count = iyc[(year, cat)]
+                if not count:
+                    continue
+                next_cumulative = cumulative + count
+                segment_h = (
+                    round(chart_h * next_cumulative / max_total)
+                    - round(chart_h * cumulative / max_total)
+                )
+                cumulative = next_cumulative
+                if segment_h <= 0:
+                    continue
+                bar_bottom -= segment_h
+                p.setBrush(QColor(_IUCN_COLOR[cat]))
+                p.setPen(Qt.NoPen)
+                p.drawRect(bar_x, bar_bottom, bar_w, segment_h)
+
+        p.setBrush(Qt.NoBrush)
+        p.setPen(QColor("#aaaaaa"))
+        p.drawLine(axis_w, y, axis_w, y + chart_h)
+        p.drawLine(axis_w, y + chart_h, year_w, y + chart_h)
+
+        label_step = max(1, len(years) // 8)
+        p.setFont(QFont("Arial", 7))
+        p.setPen(QColor("#666666"))
+        for i, year in enumerate(years):
+            if i % label_step == 0:
+                label_x = axis_w + int((i + 0.5) * bar_step)
+                p.drawText(label_x - 18, y + chart_h + 2, 36, 14, Qt.AlignCenter, str(year))
+    else:
+        p.setFont(QFont("Arial", 8))
+        p.setPen(QColor("#888888"))
+        p.drawText(0, y, year_w, chart_h, Qt.AlignCenter, "No year data available.")
+
+    total = sum(count for _, count in present)
+    pie_size = min(chart_h, pie_w)
+    pie_left = pie_x + (pie_w - pie_size) // 2
+    start_angle = 90 * 16
+    for i, (cat, count) in enumerate(present):
+        if i == len(present) - 1:
+            span_angle = (90 * 16 - 360 * 16) - start_angle
+        else:
+            span_angle = -round(360 * 16 * count / total)
+        p.setBrush(QColor(_IUCN_COLOR[cat]))
+        p.setPen(QColor("#ffffff"))
+        p.drawPie(pie_left, y, pie_size, pie_size, start_angle, span_angle)
+        start_angle += span_angle
+
+    legend_y = y + chart_h + 22
+    columns = 3
+    column_w = W // columns
+    row_h = 18
+    for i, (cat, count) in enumerate(present):
+        col = i % columns
+        row = i // columns
+        item_x = col * column_w
+        item_y = legend_y + row * row_h
+        p.setBrush(QColor(_IUCN_COLOR[cat]))
+        p.setPen(Qt.NoPen)
+        p.drawRect(item_x, item_y + 4, 10, 10)
+        label = f"{cat}  {_IUCN_LABEL.get(cat, cat)}  {count:,}"
+        p.setFont(QFont("Arial", 7))
+        p.setPen(QColor("#444444"))
+        p.drawText(item_x + 15, item_y, column_w - 20, row_h, Qt.AlignLeft | Qt.AlignVCenter, label)
 
     p.setBrush(Qt.NoBrush)
-    return y + len(present) * ROW_H + 10
+    legend_rows = (len(present) + columns - 1) // columns
+    return legend_y + legend_rows * row_h + 8
 
 
 def _draw_bottom_cols(p: QPainter, W: int, y: int, stats: dict):
