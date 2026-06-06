@@ -72,6 +72,7 @@ def build_predicate(
     geometry_wkt: str,
     year_predicates: list | None = None,
     months: list | None = None,
+    conservation_statuses: list | None = None,
 ) -> dict:
     parts = [
         {"type": "equals", "key": "HAS_COORDINATE",       "value": "true"},
@@ -102,6 +103,8 @@ def build_predicate(
         parts.append({"type": "within", "geometry": geometry_wkt})
     if months:
         parts.append({"type": "in", "key": "MONTH", "values": [str(m) for m in months]})
+    if conservation_statuses:
+        parts.append({"type": "in", "key": "IUCN_RED_LIST_CATEGORY", "values": conservation_statuses})
 
     return {"type": "and", "predicates": parts}
 
@@ -121,6 +124,19 @@ _KEY_LABEL = {
     "BASIS_OF_RECORD": "Basis of record",
     "YEAR": "Year",
     "MONTH": "Month",
+    "IUCN_RED_LIST_CATEGORY": "IUCN status",
+}
+
+_IUCN_LABEL = {
+    "EX": "EX (Extinct)",
+    "EW": "EW (Extinct in the Wild)",
+    "CR": "CR (Critically Endangered)",
+    "EN": "EN (Endangered)",
+    "VU": "VU (Vulnerable)",
+    "NT": "NT (Near Threatened)",
+    "LC": "LC (Least Concern)",
+    "DD": "DD (Data Deficient)",
+    "NE": "NE (Not Evaluated)",
 }
 _SKIP_KEYS = {"HAS_COORDINATE", "HAS_GEOSPATIAL_ISSUE"}
 _COUNTRY_LABEL_BY_CODE = {code: name for name, code in COUNTRIES}
@@ -145,6 +161,8 @@ def format_predicate_summary(predicate: dict) -> str:
                     f"{_COUNTRY_LABEL_BY_CODE.get(v, v)} ({v})"
                     for v in values
                 ]
+            elif key == "IUCN_RED_LIST_CATEGORY":
+                values = [_IUCN_LABEL.get(v, v) for v in values]
             lines.append(f"  {label}: {', '.join(str(v) for v in values)}")
         elif ptype == "within":
             lines.append("  Geometry: polygon filter active")

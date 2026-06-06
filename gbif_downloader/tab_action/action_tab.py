@@ -69,11 +69,28 @@ class ActionTab(QWidget, FORM_CLASS):
         self._year_section = YearFilterSection()
         self._params_layout.insertRow(3, self._year_section)
 
+        self._conservation_section = CheckboxFilterSection(
+            "Conservation status (IUCN)",
+            [
+                ("Extinct",                  "EX"),
+                ("Extinct in the Wild",       "EW"),
+                ("Critically Endangered",     "CR"),
+                ("Endangered",                "EN"),
+                ("Vulnerable",                "VU"),
+                ("Near Threatened",           "NT"),
+                ("Least Concern",             "LC"),
+                ("Data Deficient",            "DD"),
+                ("Not Evaluated",             "NE"),
+            ],
+            columns=2,
+        )
+        self._params_layout.insertRow(5, self._conservation_section)
+
         self._params_layout.removeRow(self.format_combo)
         self._params_layout.removeRow(self.polygon_row)
         self._geometry_section = GeometryFilterSection(self._iface)
         self._geometry_section.set_draw_handlers(self._toggle_draw, self._stop_draw)
-        self._params_layout.insertRow(5, self._geometry_section)
+        self._params_layout.insertRow(6, self._geometry_section)
 
         self.submit_btn.clicked.connect(self._submit)
 
@@ -141,6 +158,10 @@ class ActionTab(QWidget, FORM_CLASS):
         checked = self._basis_section.get_checked_values()
         return checked if 0 < len(checked) < 9 else []
 
+    def _get_conservation_filter(self) -> list[str]:
+        checked = self._conservation_section.get_checked_values()
+        return checked if 0 < len(checked) < 9 else []
+
     def _get_country_filter(self) -> list[str]:
         return self._country_section.get_selected_countries()
 
@@ -152,6 +173,7 @@ class ActionTab(QWidget, FORM_CLASS):
             self._geometry_section.get_geometry_wkt(),
             self._year_section.get_year_predicate(),
             self._get_month_filter(),
+            self._get_conservation_filter(),
         ])
         if not has_filter:
             QMessageBox.warning(
@@ -168,6 +190,7 @@ class ActionTab(QWidget, FORM_CLASS):
             geometry_wkt=self._geometry_section.get_geometry_wkt(),
             year_predicates=self._year_section.get_year_predicate(),
             months=self._get_month_filter(),
+            conservation_statuses=self._get_conservation_filter(),
         )
         fmt = self._download_format
         
