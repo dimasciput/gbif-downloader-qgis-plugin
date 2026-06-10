@@ -11,6 +11,7 @@ from qgis.PyQt.QtWidgets import (
     QListWidgetItem,
     QMenu,
     QMessageBox,
+    QPushButton,
     QWidget,
 )
 
@@ -59,6 +60,11 @@ class DownloadsTab(QWidget, FORM_CLASS):
             self._status_menu.addAction(action)
             self._status_actions[s] = action
         self.status_btn.setMenu(self._status_menu)
+
+        self._credentials_btn = QPushButton("Configure GBIF Credentials…")
+        self._credentials_btn.clicked.connect(self._open_credentials_dialog)
+        self._credentials_btn.hide()
+        self.verticalLayout.insertWidget(1, self._credentials_btn)
 
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(POLL_MS)
@@ -140,6 +146,12 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self._page_offset = 0
         self.refresh()
 
+    def _open_credentials_dialog(self):
+        from ..credentials_dialog import CredentialsDialog
+        dlg = CredentialsDialog(self)
+        dlg.exec_()
+        self.refresh()
+
     def refresh(self):
         from ..gbif_api import get_credentials
         username, _ = get_credentials()
@@ -149,7 +161,9 @@ class DownloadsTab(QWidget, FORM_CLASS):
                 "Use the dropdown → Configure GBIF Credentials."
             )
             self.status_label.setStyleSheet("color: orange;")
+            self._credentials_btn.show()
             return
+        self._credentials_btn.hide()
         self.refresh_btn.setEnabled(False)
         self.prev_btn.setEnabled(False)
         self.next_btn.setEnabled(False)

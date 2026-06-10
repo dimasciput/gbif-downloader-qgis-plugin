@@ -145,6 +145,12 @@ class ActionTab(QWidget, FORM_CLASS):
 
         self.submit_btn.clicked.connect(self._submit)
 
+        self._credentials_btn = QPushButton("Configure GBIF Credentials…")
+        self._credentials_btn.clicked.connect(self._open_credentials_dialog)
+        self._credentials_btn.hide()
+        idx = self.verticalLayout.indexOf(self.status_label)
+        self.verticalLayout.insertWidget(idx + 1, self._credentials_btn)
+
         self._warn_if_no_credentials()
 
     def _warn_if_no_credentials(self):
@@ -156,6 +162,15 @@ class ActionTab(QWidget, FORM_CLASS):
                 "Use the dropdown → Configure GBIF Credentials."
             )
             self.status_label.setStyleSheet("color: orange;")
+            self._credentials_btn.show()
+        else:
+            self._credentials_btn.hide()
+
+    def _open_credentials_dialog(self):
+        from ..credentials_dialog import CredentialsDialog
+        dlg = CredentialsDialog(self)
+        dlg.exec_()
+        self._warn_if_no_credentials()
 
     def _toggle_draw(self):
         canvas = self._iface.mapCanvas()
@@ -280,6 +295,7 @@ class ActionTab(QWidget, FORM_CLASS):
             return
 
         self.submit_btn.setEnabled(False)
+        self._credentials_btn.hide()
         self.status_label.setText("Submitting…")
         self.status_label.setStyleSheet("color: grey;")
 
