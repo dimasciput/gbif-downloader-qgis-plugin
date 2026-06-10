@@ -24,7 +24,7 @@ class FetchPageWorker(QThread):
         username, password = get_credentials()
         if not username:
             self.error.emit(
-                "No GBIF credentials configured. "
+                "No GBIF credentials configured.\n"
                 "Use the dropdown → Configure GBIF Credentials."
             )
             return

@@ -1,8 +1,9 @@
 import os
+import shutil
 
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtWidgets import QDialog
+from qgis.PyQt.QtWidgets import QDialog, QMessageBox
 
 FORM_CLASS, _ = uic.loadUiType(
     os.path.join(os.path.dirname(__file__), "gui", "credentials_dialog.ui")
@@ -20,6 +21,7 @@ class CredentialsDialog(QDialog, FORM_CLASS):
         )
 
         self.test_btn.clicked.connect(self._test_connection)
+        self.logout_btn.clicked.connect(self._logout)
         self.button_box.accepted.connect(self._save)
         self.button_box.rejected.connect(self.reject)
 
@@ -38,6 +40,32 @@ class CredentialsDialog(QDialog, FORM_CLASS):
             self.password_edit.text(),
         )
         self.accept()
+
+    def _logout(self):
+        from .gbif_api import delete_credentials
+        from .tab_downloads.cache import cache_dir
+
+        reply = QMessageBox.warning(
+            self,
+            "Logout & Delete Downloaded Data",
+            "This will remove your saved GBIF credentials and permanently delete all "
+            "locally cached download data.\n\nThis action cannot be undone. Continue?",
+            QMessageBox.Yes | QMessageBox.Cancel,
+            QMessageBox.Cancel,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        delete_credentials()
+
+        cache = cache_dir().parent
+        if cache.exists():
+            shutil.rmtree(cache, ignore_errors=True)
+
+        self.username_edit.clear()
+        self.password_edit.clear()
+        self.result_label.setText("Logged out and data deleted.")
+        self.result_label.setStyleSheet("color: green;")
 
     def _test_connection(self):
         from .gbif_api import test_credentials

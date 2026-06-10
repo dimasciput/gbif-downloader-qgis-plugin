@@ -63,6 +63,17 @@ def save_credentials(username: str, password: str) -> None:
         settings.setValue(_AUTH_CFG_SETTINGS_KEY, config.id())
 
 
+def delete_credentials() -> None:
+    """Remove stored credentials from the QGIS auth manager and settings."""
+    from qgis.core import QgsApplication, QgsSettings
+
+    settings = QgsSettings()
+    cfg_id = settings.value(_AUTH_CFG_SETTINGS_KEY, "")
+    if cfg_id:
+        QgsApplication.authManager().removeAuthenticationConfig(cfg_id)
+        settings.remove(_AUTH_CFG_SETTINGS_KEY)
+
+
 def test_credentials(username: str, password: str) -> tuple[bool, str]:
     """Return (ok, message). Hits the GBIF login endpoint."""
     url = f"{_BASE}/user/login"

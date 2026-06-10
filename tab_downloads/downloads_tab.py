@@ -141,6 +141,15 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self.refresh()
 
     def refresh(self):
+        from ..gbif_api import get_credentials
+        username, _ = get_credentials()
+        if not username:
+            self.status_label.setText(
+                "No GBIF credentials configured.\n"
+                "Use the dropdown → Configure GBIF Credentials."
+            )
+            self.status_label.setStyleSheet("color: orange;")
+            return
         self.refresh_btn.setEnabled(False)
         self.prev_btn.setEnabled(False)
         self.next_btn.setEnabled(False)
@@ -360,5 +369,5 @@ class DownloadsTab(QWidget, FORM_CLASS):
     def _on_error(self, message: str):
         self.refresh_btn.setEnabled(True)
         self._update_pagination()
-        self.status_label.setText(f"Error: {message}")
+        self.status_label.setText(message)
         self.status_label.setStyleSheet("color: red;")

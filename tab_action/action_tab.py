@@ -145,6 +145,18 @@ class ActionTab(QWidget, FORM_CLASS):
 
         self.submit_btn.clicked.connect(self._submit)
 
+        self._warn_if_no_credentials()
+
+    def _warn_if_no_credentials(self):
+        from ..gbif_api import get_credentials
+        username, _ = get_credentials()
+        if not username:
+            self.status_label.setText(
+                "No GBIF credentials configured.\n"
+                "Use the dropdown → Configure GBIF Credentials."
+            )
+            self.status_label.setStyleSheet("color: orange;")
+
     def _toggle_draw(self):
         canvas = self._iface.mapCanvas()
         if self._polygon_tool and canvas.mapTool() is self._polygon_tool:
@@ -285,5 +297,5 @@ class ActionTab(QWidget, FORM_CLASS):
 
     def _on_error(self, message: str):
         self.submit_btn.setEnabled(True)
-        self.status_label.setText(f"Error: {message}")
+        self.status_label.setText(message)
         self.status_label.setStyleSheet("color: red;")

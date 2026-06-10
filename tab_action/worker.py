@@ -16,8 +16,8 @@ class SubmitWorker(QThread):
         username, password = get_credentials()
         if not username:
             self.error.emit(
-                "No GBIF credentials configured. "
-                "Use the dropdown -> Configure GBIF Credentials."
+                "No GBIF credentials configured.\n"
+                "Use the dropdown → Configure GBIF Credentials."
             )
             return
         try:
