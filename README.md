@@ -1,118 +1,66 @@
-# gbif-project-2026
+# GBIF Downloader
 
-Convert GBIF Darwin Core occurrence data (TSV) to GeoParquet, and query it with DuckDB.
+GBIF Downloader is a QGIS plugin for submitting and managing occurrence
+download requests through the GBIF Download API.
+
+## Features
+
+- Build GBIF download predicates from taxon, country, year, basis-of-record,
+  and geometry filters.
+- Draw a polygon on the QGIS map canvas or use geometry from an existing layer.
+- Submit, monitor, cancel, and open GBIF occurrence downloads.
+- Load completed downloads into QGIS.
+- Generate a PDF summary report for a download.
+- Store GBIF credentials in the QGIS authentication manager.
 
 ## Requirements
 
-### Go
+- QGIS 3.28 or newer
+- A [GBIF account](https://www.gbif.org/user/profile)
 
-Install Go 1.22+:
+The plugin uses Python and Qt modules bundled with QGIS and has no separate
+runtime dependencies.
 
-```bash
-# Fedora / RHEL
-sudo dnf install golang
+## Development Installation
 
-# Or download from https://go.dev/dl/
-# then add to your shell profile:
-export PATH=$PATH:/usr/local/go/bin
-```
-
-Verify: `go version`
-
-### GCC (required by go-duckdb — it uses CGO)
+QGIS requires the plugin directory to be named `gbif_downloader`. Clone the
+repository into the QGIS profile's plugin directory:
 
 ```bash
-# Fedora / RHEL
-sudo dnf install gcc
-
-# Ubuntu / Debian
-sudo apt install build-essential
+git clone https://github.com/dimasciputra/gbif-project-2026.git \
+  ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/gbif_downloader
 ```
 
-### DuckDB CLI (optional — for ad-hoc querying outside Go)
+Restart QGIS, then enable **GBIF Downloader** under
+**Plugins > Manage and Install Plugins > Installed**.
 
-The Go tools embed DuckDB, so the CLI is optional. Install it if you want a REPL:
+## Package
+
+Create an installable QGIS plugin archive:
 
 ```bash
-# Fedora / RHEL — via the official binary
-curl -fL https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-amd64.zip \
-  -o /tmp/duckdb.zip
-unzip /tmp/duckdb.zip -d /tmp
-sudo mv /tmp/duckdb /usr/local/bin/duckdb
-chmod +x /usr/local/bin/duckdb
+make package
 ```
 
-Verify: `duckdb --version`
+The archive is written to `dist/gbif_downloader.zip`. It can be installed from
+**Plugins > Manage and Install Plugins > Install from ZIP**.
 
-## Setup
+## Repository Layout
 
-```bash
-go mod tidy        # downloads go-duckdb and its DuckDB amalgamation
-```
+The repository root is the QGIS plugin package:
 
-> First run takes ~2 minutes — go-duckdb compiles DuckDB from source via CGO.
-
-## Usage
-
-### Convert TSV → GeoParquet
-
-```bash
-go run ./cmd/convert \
-  -input  gbif_sample_data/occurrence.txt \
-  -output occurrences.geoparquet
-```
-
-This will:
-1. Load DuckDB's `spatial` extension
-2. Read the tab-separated occurrence file
-3. Build a `geometry` column (WKB point) from `decimalLongitude` / `decimalLatitude`
-4. Write a GeoParquet file with embedded CRS metadata (EPSG:4326)
-
-### Query the GeoParquet
-
-Run the default preview (10 rows):
-
-```bash
-go run ./cmd/query -input occurrences.geoparquet
-```
-
-Run a custom SQL query (use `tbl` as the table name):
-
-```bash
-go run ./cmd/query -input occurrences.geoparquet \
-  -q "SELECT countryCode, COUNT(*) AS n FROM tbl GROUP BY countryCode ORDER BY n DESC LIMIT 10"
-```
-
-Spatial query example:
-
-```bash
-go run ./cmd/query -input occurrences.geoparquet \
-  -q "SELECT species, ST_AsText(geometry) AS wkt FROM tbl WHERE countryCode = 'AU' LIMIT 5"
-```
-
-### DuckDB CLI (optional)
-
-```bash
-duckdb
-```
-
-```sql
-LOAD spatial;
-SELECT gbifID, species, ST_AsText(geometry) AS wkt
-FROM read_parquet('occurrences.geoparquet')
-WHERE countryCode = 'AU'
-LIMIT 10;
-```
-
-## Project structure
-
-```
+```text
 .
-├── cmd/
-│   ├── convert/main.go   -- TSV → GeoParquet pipeline
-│   └── query/main.go     -- query GeoParquet via SQL
-├── gbif_sample_data/
-│   └── occurrence.txt    -- GBIF Darwin Core TSV (not committed)
-├── go.mod
-└── README.md
+├── __init__.py
+├── metadata.txt
+├── plugin.py
+├── dock_widget.py
+├── gbif_api.py
+├── gui/
+├── tab_action/
+└── tab_downloads/
 ```
+
+## License
+
+No license has been specified yet.

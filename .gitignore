@@ -1,2 +1,6 @@
 gbif_sample_data/
 __pycache__/
+*.py[cod]
+build/
+dist/
+*.zip
