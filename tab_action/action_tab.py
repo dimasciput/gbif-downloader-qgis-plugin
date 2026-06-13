@@ -17,8 +17,9 @@ from .country_filter import CountryFilterSection
 from .geometry_filter import GeometryFilterSection
 from .predicate import build_predicate, format_predicate_summary
 from .polygon_tool import PolygonTool
-from .taxon_filter import HigherTaxonFilterSection, ScientificNameFilterSection
+from .taxon_filter import HigherTaxonFilterSection
 from .dataset_filter import DatasetFilterSection
+from .scientific_name_filter import ScientificNameFilterSection
 from .worker import SubmitWorker
 
 _GUI_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "gui")

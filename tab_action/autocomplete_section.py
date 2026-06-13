@@ -1,86 +1,65 @@
+
+from abc import abstractmethod
+
 import json
 
-from qgis.PyQt.QtGui import QStandardItem, QStandardItemModel
 from qgis.PyQt.QtNetwork import (
     QNetworkAccessManager, 
     QNetworkReply, 
     QNetworkRequest
 )
 from qgis.PyQt.QtWidgets import (
-    QComboBox,
     QCompleter,
     QLineEdit,
     QPushButton,
-    QStyledItemDelegate,
-    QStyle,
 )
 from qgis.PyQt.QtCore import (
     Qt,
     QTimer,
     QUrl,
-    QSize,
     QUrlQuery,
-    QRect
 )
+from qgis.PyQt.QtGui import QStandardItem, QStandardItemModel
 
 from .accordion import ACTION_BTN_STYLE, AccordionSection
+from .taxon_filter import AutocompleteNameDelegate
 
 
-class HigherTaxon(object):
-    name: str
-    key: str
-    rank: str  # KINGDOM, PHYLUM, CLASS, ORDER, FAMILY
+class AutocompleteFilterSection(AccordionSection):
+    """Autocomplete filter section class"""
 
-    def __init__(self, name: str, key: str, rank: str):
-        self.name = name
-        self.key = key
-        self.rank = rank
-
-
-_HIGHER_RANKS = [
-    ("Family",  "FAMILY"),
-    ("Order",   "ORDER"),
-    ("Class",   "CLASS"),
-]
-
-
-class AutocompleteNameDelegate(QStyledItemDelegate):
-    """Paint autocomplete rows as name + taxonomic rank."""
-
-    def sizeHint(self, option, index):
-        size = super().sizeHint(option, index)
-        return QSize(size.width(), max(size.height(), 38))
-
-    def paint(self, painter, option, index):
-        text = index.data(Qt.DisplayRole) or ""
-        name, _, rank = text.partition("\n")
-
-        painter.save()
-        self.initStyleOption(option, index)
-        option.text = ""
-        option.widget.style().drawControl(QStyle.CE_ItemViewItem, option, painter)
-
-        left = option.rect.left() + 6
-        width = option.rect.width() - 12
-        name_rect = QRect(left, option.rect.top() + 4, width, 17)
-        rank_rect = QRect(left, option.rect.top() + 21, width, 13)
-
-        painter.setPen(option.palette.text().color())
-        painter.drawText(name_rect, Qt.AlignLeft | Qt.AlignVCenter, name)
-        if rank:
-            painter.drawText(rank_rect, Qt.AlignLeft | Qt.AlignVCenter, rank)
-        painter.restore()
-
-
-class HigherTaxonFilterSection(AccordionSection):
-    """AccordionSection with rank selector and GBIF autocomplete for higher taxonomy."""
-
-    _SUGGEST_URL = "https://api.gbif.org/v1/species/suggest"
+    @abstractmethod
+    def filter_object(self, *args):
+        return None
+    
+    @abstractmethod
+    def filter_name(self):
+        return "Filter"
+    
+    @abstractmethod
+    def description(self):
+        return ""
+    
+    @abstractmethod
+    def suggest_url(self):
+        return ""
+    
+    @abstractmethod
+    def placeholder_text(self):
+        return "e.g. iNaturalist (leave blank for all)"
+    
+    @abstractmethod
+    def item_key(self):
+        return "title"
+    
+    @abstractmethod
+    def item_desc(self, item_data):
+        return None
 
     def __init__(self, parent=None):
         super().__init__(
-            "Higher taxonomy",
-            description="A higher-rank taxon (family, order, or class) to filter occurrences by.",
+            self.filter_name(),
+            description=self.description(),
             parent=parent,
         )
 
@@ -88,16 +67,12 @@ class HigherTaxonFilterSection(AccordionSection):
         self._reply = None
         self._pending_query = ""
         self._suggestion_keys: dict[str, str] = {}
-        self._selected: HigherTaxon | None = None
+        self._selected: self.filter_object() | None = None
 
         layout = self.content_layout
 
-        self._rank_combo = QComboBox()
-        for label, value in _HIGHER_RANKS:
-            self._rank_combo.addItem(label, value)
-
         self._edit = QLineEdit()
-        self._edit.setPlaceholderText("e.g. Felidae (leave blank for all)")
+        self._edit.setPlaceholderText(self.placeholder_text())
 
         self._model = QStandardItemModel(self)
         self._completer = QCompleter(self._model, self)
@@ -112,29 +87,18 @@ class HigherTaxonFilterSection(AccordionSection):
         clear_btn = QPushButton("Clear")
         clear_btn.setStyleSheet(ACTION_BTN_STYLE)
 
-        layout.addWidget(self._rank_combo, 0, 0, 1, 3)
-        layout.addWidget(self._edit,       1, 0, 1, 4)
-        layout.addWidget(clear_btn,        2, 3)
+        layout.addWidget(self._edit, 0, 0, 1, 4)
+        layout.addWidget(clear_btn, 1, 3)
 
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(350)
 
-        self._rank_combo.currentIndexChanged.connect(self._on_rank_changed)
         self._edit.textEdited.connect(self._on_text_edited)
         self._edit.textChanged.connect(self._update_active)
         self._timer.timeout.connect(self._fetch_suggestions)
         clear_btn.clicked.connect(self._clear)
         self.toggled.connect(lambda _: self._update_active())
-
-    def _current_rank(self) -> str:
-        return self._rank_combo.currentData()
-
-    def _on_rank_changed(self):
-        self._selected = None
-        self._edit.clear()
-        self._model.clear()
-        self._update_active()
 
     def _on_text_edited(self, text: str):
         self._selected = None
@@ -153,10 +117,10 @@ class HigherTaxonFilterSection(AccordionSection):
         if self._reply and self._reply.isRunning():
             self._reply.abort()
 
-        url = QUrl(self._SUGGEST_URL)
+        url = QUrl(self.suggest_url())
         params = QUrlQuery()
         params.addQueryItem("q", query)
-        params.addQueryItem("rank", self._current_rank())
+        params.addQueryItem("type", "OCCURRENCE")
         params.addQueryItem("limit", "12")
         url.setQuery(params)
 
@@ -187,17 +151,17 @@ class HigherTaxonFilterSection(AccordionSection):
                 self._model.clear()
                 return
 
-            names = []
+            items = []
             seen = set()
             for item in suggestions:
-                name = item.get("scientificName") or item.get("canonicalName")
-                if name and name not in seen:
-                    seen.add(name)
-                    rank = (item.get("rank") or "").replace("_", " ").title()
-                    names.append((name, f"{name}\n{rank}" if rank else name))
-                    self._suggestion_keys[name] = item.get("key")
-            self._set_suggestions(names)
-            if names and self._edit.hasFocus():
+                title = item.get(self.item_key(), "").strip()
+                if title and title not in seen:
+                    seen.add(title)
+                    _item_desc = self.item_desc(item)
+                    items.append((title, f"{title}\n{_item_desc}" if _item_desc else title))
+                    self._suggestion_keys[title] = item.get("key", "")
+            self._set_suggestions(items)
+            if items and self._edit.hasFocus():
                 self._completer.complete()
         finally:
             reply.deleteLater()
@@ -205,17 +169,17 @@ class HigherTaxonFilterSection(AccordionSection):
                 self._reply = None
 
     def _apply_completion(self, value: str):
-        name = value.split("\n", 1)[0].strip()
-        self._edit.setText(name)
-        key = self._suggestion_keys.get(name, "")
-        self._selected = HigherTaxon(name, key, self._current_rank())
+        title = value.split("\n", 1)[0].strip()
+        self._edit.setText(title)
+        key = self._suggestion_keys.get(title, "")
+        self._selected = self.filter_object(title, key)
         self._update_active()
 
     def _set_suggestions(self, suggestions: list[tuple[str, str]]):
         self._model.clear()
-        for name, display_text in suggestions:
+        for title, display_text in suggestions:
             item = QStandardItem(display_text)
-            item.setData(name, Qt.UserRole)
+            item.setData(title, Qt.UserRole)
             self._model.appendRow(item)
 
     def _clear(self):
@@ -227,7 +191,6 @@ class HigherTaxonFilterSection(AccordionSection):
     def _update_active(self):
         self.set_active(self._selected is not None)
 
-    def get_selected(self) -> HigherTaxon | None:
-        """Return the selected higher taxon, or None for no filter."""
+    def get_selected(self) -> self.filter_object() | None:
+        """Return the selected dataset, or None for no filter."""
         return self._selected
-
