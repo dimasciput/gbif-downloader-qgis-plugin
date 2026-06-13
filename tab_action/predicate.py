@@ -7,7 +7,7 @@ from qgis.core import (
 )
 
 from .countries import COUNTRIES
-from .taxon_filter import HigherTaxon, Taxon
+from .taxon_filter import Dataset, HigherTaxon, Taxon
 
 _RANK_PREDICATE_KEY = {
     "FAMILY":  "FAMILY_KEY",
@@ -80,6 +80,7 @@ def build_predicate(
     months: list | None = None,
     conservation_statuses: list | None = None,
     higher_taxon: HigherTaxon | None = None,
+    dataset: Dataset | None = None,
     coordinate_uncertainty_predicates: list | None = None,
     elevation_predicates: list | None = None,
 ) -> dict:
@@ -118,6 +119,8 @@ def build_predicate(
         pred_key = _RANK_PREDICATE_KEY.get(higher_taxon.rank)
         if pred_key:
             parts.append({"type": "equals", "key": pred_key, "value": higher_taxon.key})
+    if dataset and dataset.key:
+        parts.append({"type": "equals", "key": "DATASET_KEY", "value": dataset.key})
     if coordinate_uncertainty_predicates:
         parts.extend(coordinate_uncertainty_predicates)
     if elevation_predicates:
@@ -142,6 +145,7 @@ _KEY_LABEL = {
     "CLASS_KEY":   "Class",
     "PHYLUM_KEY":  "Phylum",
     "KINGDOM_KEY": "Kingdom",
+    "DATASET_KEY": "Dataset",
     "COORDINATE_UNCERTAINTY_IN_METERS": "Coord. uncertainty (m)",
     "ELEVATION": "Elevation (m)",
     "COUNTRY": "Country",
