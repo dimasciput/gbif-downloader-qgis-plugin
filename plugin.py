@@ -20,7 +20,7 @@ class GbifDownloaderPlugin:
         return QCoreApplication.translate("GbifDownloader", message)
 
     def initGui(self):
-        icon = QIcon(os.path.join(self.plugin_dir, "icon.svg"))
+        icon = QIcon(os.path.join(self.plugin_dir, "gbif-downloader-icon.png"))
 
         # Main action — toggles the dock panel
         self.action_toggle = QAction(icon, self.tr("GBIF Downloader"), self.iface.mainWindow())
