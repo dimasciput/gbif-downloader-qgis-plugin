@@ -7,7 +7,8 @@ from qgis.core import (
 )
 
 from .countries import COUNTRIES
-from .taxon_filter import Dataset, HigherTaxon, Taxon
+from .taxon_filter import HigherTaxon, Taxon
+from .dataset_filter import Dataset
 
 _RANK_PREDICATE_KEY = {
     "FAMILY":  "FAMILY_KEY",
