@@ -38,6 +38,7 @@ class CredentialsDialog(QDialog, FORM_CLASS):
         username, password = get_credentials()
         self.username_edit.setText(username)
         self.password_edit.setText(password)
+        self.logout_btn.setVisible(bool(username))
 
     def _on_credentials_changed(self):
         self._test_passed = False
@@ -76,6 +77,7 @@ class CredentialsDialog(QDialog, FORM_CLASS):
 
         self.username_edit.clear()
         self.password_edit.clear()
+        self.logout_btn.setVisible(False)
         self.result_label.setText("Logged out and data deleted.")
         self.result_label.setStyleSheet("color: green;")
 

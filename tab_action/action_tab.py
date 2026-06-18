@@ -19,6 +19,7 @@ from .predicate import build_predicate, format_predicate_summary
 from .polygon_tool import PolygonTool
 from .taxon_filter import HigherTaxonFilterSection
 from .dataset_filter import DatasetFilterSection
+from .institution_filter import InstitutionFilterSection
 from .scientific_name_filter import ScientificNameFilterSection
 from .worker import SubmitWorker
 
@@ -59,6 +60,9 @@ class ActionTab(QWidget, FORM_CLASS):
         self._dataset_section = DatasetFilterSection()
         self._params_layout.insertRow(2, self._dataset_section)
 
+        self._institution_section = InstitutionFilterSection()
+        self._params_layout.insertRow(3, self._institution_section)
+
         self._params_layout.removeRow(self.basis_combo)
         self._basis_section = CheckboxFilterSection(
             "Basis of record",
@@ -76,13 +80,13 @@ class ActionTab(QWidget, FORM_CLASS):
             columns=2,
             description="Basis of record, as defined in our BasisOfRecord vocabulary.",
         )
-        self._params_layout.insertRow(3, self._basis_section)
+        self._params_layout.insertRow(4, self._basis_section)
 
         self._country_section = CountryFilterSection()
-        self._params_layout.insertRow(4, self._country_section)
+        self._params_layout.insertRow(5, self._country_section)
 
         self._year_section = YearFilterSection()
-        self._params_layout.insertRow(5, self._year_section)
+        self._params_layout.insertRow(6, self._year_section)
 
         self._coord_uncertainty_section = NumericRangeFilterSection(
             "Coordinate uncertainty",
@@ -98,7 +102,7 @@ class ActionTab(QWidget, FORM_CLASS):
                 "the Location. Supports range queries."
             ),
         )
-        self._params_layout.insertRow(6, self._coord_uncertainty_section)
+        self._params_layout.insertRow(7, self._coord_uncertainty_section)
 
         self._elevation_section = NumericRangeFilterSection(
             "Elevation",
@@ -110,7 +114,7 @@ class ActionTab(QWidget, FORM_CLASS):
             default_to=1000,
             description="Elevation (altitude) in metres above sea level. Supports range queries.",
         )
-        self._params_layout.insertRow(7, self._elevation_section)
+        self._params_layout.insertRow(8, self._elevation_section)
 
         self._month_section = CheckboxFilterSection(
             "Month",
@@ -122,7 +126,7 @@ class ActionTab(QWidget, FORM_CLASS):
             columns=4,
             description="The ordinal month in which the event occurred.",
         )
-        self._params_layout.insertRow(8, self._month_section)
+        self._params_layout.insertRow(9, self._month_section)
 
         self._conservation_section = CheckboxFilterSection(
             "Conservation status (IUCN)",
@@ -140,13 +144,13 @@ class ActionTab(QWidget, FORM_CLASS):
             columns=2,
             description="The IUCN Red List Category of the taxon at the time of the occurrence.",
         )
-        self._params_layout.insertRow(9, self._conservation_section)
+        self._params_layout.insertRow(10, self._conservation_section)
 
         self._params_layout.removeRow(self.format_combo)
         self._params_layout.removeRow(self.polygon_row)
         self._geometry_section = GeometryFilterSection(self._iface)
         self._geometry_section.set_draw_handlers(self._toggle_draw, self._stop_draw)
-        self._params_layout.insertRow(10, self._geometry_section)
+        self._params_layout.insertRow(11, self._geometry_section)
 
         self.submit_btn.clicked.connect(self._submit)
 
@@ -170,6 +174,8 @@ class ActionTab(QWidget, FORM_CLASS):
             self._credentials_btn.show()
         else:
             self._credentials_btn.hide()
+            self.status_label.setText("")
+            self.status_label.setStyleSheet("")
 
     def _open_credentials_dialog(self):
         from ..credentials_dialog import CredentialsDialog
@@ -241,6 +247,7 @@ class ActionTab(QWidget, FORM_CLASS):
         self._taxon_filter._clear()
         self._higher_taxon_section._clear()
         self._dataset_section._clear()
+        self._institution_section._clear()
         self._basis_section._clear_all()
         self._country_section._clear()
         self._year_section._clear()
@@ -259,6 +266,7 @@ class ActionTab(QWidget, FORM_CLASS):
             self._taxon_filter.get_selected_taxon(),
             self._get_higher_taxon_filter(),
             self._dataset_section.get_selected(),
+            self._institution_section.get_selected(),
             self._get_country_filter(),
             self._get_basis_filter(),
             self._geometry_section.get_geometry_wkt(),
@@ -280,6 +288,7 @@ class ActionTab(QWidget, FORM_CLASS):
             taxon=self._taxon_filter.get_selected_taxon(),
             higher_taxon=self._get_higher_taxon_filter(),
             dataset=self._dataset_section.get_selected(),
+            institution=self._institution_section.get_selected(),
             country=self._get_country_filter(),
             basis=self._get_basis_filter(),
             geometry_wkt=self._geometry_section.get_geometry_wkt(),

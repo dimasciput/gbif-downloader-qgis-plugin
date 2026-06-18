@@ -4,8 +4,8 @@ from abc import abstractmethod
 import json
 
 from qgis.PyQt.QtNetwork import (
-    QNetworkAccessManager, 
-    QNetworkReply, 
+    QNetworkAccessManager,
+    QNetworkReply,
     QNetworkRequest
 )
 from qgis.PyQt.QtWidgets import (
@@ -31,30 +31,31 @@ class AutocompleteFilterSection(AccordionSection):
     @abstractmethod
     def filter_object(self, *args):
         return None
-    
+
     @abstractmethod
     def filter_name(self):
         return "Filter"
-    
+
     @abstractmethod
     def description(self):
         return ""
-    
+
     @abstractmethod
     def suggest_url(self):
         return ""
-    
-    @abstractmethod
+
     def placeholder_text(self):
         return "e.g. iNaturalist (leave blank for all)"
-    
+
     @abstractmethod
     def item_key(self):
         return "title"
-    
-    @abstractmethod
-    def item_desc(self, item_data):
+
+    def item_desc(self, _item_data):
         return None
+
+    def extra_query_params(self) -> dict:
+        return {}
 
     def __init__(self, parent=None):
         super().__init__(
@@ -67,7 +68,7 @@ class AutocompleteFilterSection(AccordionSection):
         self._reply = None
         self._pending_query = ""
         self._suggestion_keys: dict[str, str] = {}
-        self._selected: self.filter_object() | None = None
+        self._selected = None
 
         layout = self.content_layout
 
@@ -120,8 +121,9 @@ class AutocompleteFilterSection(AccordionSection):
         url = QUrl(self.suggest_url())
         params = QUrlQuery()
         params.addQueryItem("q", query)
-        params.addQueryItem("type", "OCCURRENCE")
         params.addQueryItem("limit", "12")
+        for key, value in self.extra_query_params().items():
+            params.addQueryItem(key, value)
         url.setQuery(params)
 
         request = QNetworkRequest(url)
@@ -191,6 +193,6 @@ class AutocompleteFilterSection(AccordionSection):
     def _update_active(self):
         self.set_active(self._selected is not None)
 
-    def get_selected(self) -> self.filter_object() | None:
-        """Return the selected dataset, or None for no filter."""
+    def get_selected(self):
+        """Return the selected filter object, or None for no filter."""
         return self._selected

@@ -27,3 +27,6 @@ class DatasetFilterSection(AutocompleteFilterSection):
     
     def item_key(self):
         return "title"
+
+    def extra_query_params(self) -> dict:
+        return {"type": "OCCURRENCE"}
