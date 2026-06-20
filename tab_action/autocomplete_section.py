@@ -54,6 +54,10 @@ class AutocompleteFilterSection(AccordionSection):
     def item_desc(self, _item_data):
         return None
 
+    def parse_item(self, item) -> tuple[str, str]:
+        """Return (display_title, key) from a single suggestion item."""
+        return item.get(self.item_key(), "").strip(), item.get("key", "")
+
     def extra_query_params(self) -> dict:
         return {}
 
@@ -156,12 +160,12 @@ class AutocompleteFilterSection(AccordionSection):
             items = []
             seen = set()
             for item in suggestions:
-                title = item.get(self.item_key(), "").strip()
+                title, key = self.parse_item(item)
                 if title and title not in seen:
                     seen.add(title)
                     _item_desc = self.item_desc(item)
                     items.append((title, f"{title}\n{_item_desc}" if _item_desc else title))
-                    self._suggestion_keys[title] = item.get("key", "")
+                    self._suggestion_keys[title] = key
             self._set_suggestions(items)
             if items and self._edit.hasFocus():
                 self._completer.complete()

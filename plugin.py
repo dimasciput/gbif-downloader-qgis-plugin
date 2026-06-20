@@ -89,5 +89,5 @@ class GbifDownloaderPlugin:
         if self.dock:
             self.dock.cleanup()
             self.iface.mainWindow().removeDockWidget(self.dock)
-            self.dock.deleteLater()
+            self.dock.setParent(None)
             self.dock = None

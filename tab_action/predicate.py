@@ -125,8 +125,8 @@ def build_predicate(
             parts.append({"type": "equals", "key": pred_key, "value": higher_taxon.key})
     if dataset and dataset.key:
         parts.append({"type": "equals", "key": "DATASET_KEY", "value": dataset.key})
-    if institution and institution.key:
-        parts.append({"type": "equals", "key": "INSTITUTION_KEY", "value": institution.key})
+    if institution and institution.name:
+        parts.append({"type": "equals", "key": "INSTITUTION_CODE", "value": institution.name})
     if coordinate_uncertainty_predicates:
         parts.extend(coordinate_uncertainty_predicates)
     if elevation_predicates:
@@ -152,7 +152,7 @@ _KEY_LABEL = {
     "PHYLUM_KEY":  "Phylum",
     "KINGDOM_KEY": "Kingdom",
     "DATASET_KEY": "Dataset",
-    "INSTITUTION_KEY": "Institution",
+    "INSTITUTION_CODE": "Institution code",
     "COORDINATE_UNCERTAINTY_IN_METERS": "Coord. uncertainty (m)",
     "ELEVATION": "Elevation (m)",
     "COUNTRY": "Country",

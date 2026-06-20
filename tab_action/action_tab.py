@@ -3,9 +3,15 @@ import os
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtWidgets import (
-    QWidget,
+    QCheckBox,
+    QDialog,
+    QDialogButtonBox,
+    QFrame,
+    QLabel,
     QMessageBox,
     QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
 
 from .accordion import (
@@ -25,6 +31,69 @@ from .worker import SubmitWorker
 
 _GUI_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "gui")
 FORM_CLASS, _ = uic.loadUiType(os.path.join(_GUI_DIR, "action_tab.ui"))
+
+
+class DisclaimerDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Before You Download")
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.setMinimumWidth(480)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
+        agreement_title = QLabel("<b>Data Use Agreement</b>")
+        layout.addWidget(agreement_title)
+
+        agreement_body = QLabel(
+            "By downloading this data, you acknowledge that you have read and accepted "
+            "the terms of the data use agreement."
+        )
+        agreement_body.setWordWrap(True)
+        layout.addWidget(agreement_body)
+
+        self._cb_agreement = QCheckBox(
+            "I have read and accept the data use agreement."
+        )
+        layout.addWidget(self._cb_agreement)
+
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(separator)
+
+        citation_title = QLabel("<b>Data Citation</b>")
+        layout.addWidget(citation_title)
+
+        citation_body = QLabel(
+            "By downloading this data, you agree to:\n"
+            "•  follow the citation guidelines for GBIF-mediated data\n"
+            "•  always include the DOI assigned to the download when citing or "
+            "referring to the data in any publication"
+        )
+        citation_body.setWordWrap(True)
+        layout.addWidget(citation_body)
+
+        self._cb_citation = QCheckBox(
+            "I agree to the citation requirements."
+        )
+        layout.addWidget(self._cb_citation)
+
+        self._buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self._ok_btn = self._buttons.button(QDialogButtonBox.Ok)
+        self._ok_btn.setEnabled(False)
+        self._buttons.accepted.connect(self.accept)
+        self._buttons.rejected.connect(self.reject)
+        layout.addWidget(self._buttons)
+
+        self._cb_agreement.toggled.connect(self._update_ok)
+        self._cb_citation.toggled.connect(self._update_ok)
+
+    def _update_ok(self):
+        self._ok_btn.setEnabled(
+            self._cb_agreement.isChecked() and self._cb_citation.isChecked()
+        )
 
 
 class ActionTab(QWidget, FORM_CLASS):
@@ -263,7 +332,7 @@ class ActionTab(QWidget, FORM_CLASS):
 
     def _submit(self):
         has_filter = any([
-            self._taxon_filter.get_selected_taxon(),
+            self._taxon_filter.get_selected(),
             self._get_higher_taxon_filter(),
             self._dataset_section.get_selected(),
             self._institution_section.get_selected(),
@@ -284,8 +353,11 @@ class ActionTab(QWidget, FORM_CLASS):
             )
             return
 
+        if DisclaimerDialog(self).exec_() != QDialog.Accepted:
+            return
+
         predicate = build_predicate(
-            taxon=self._taxon_filter.get_selected_taxon(),
+            taxon=self._taxon_filter.get_selected(),
             higher_taxon=self._get_higher_taxon_filter(),
             dataset=self._dataset_section.get_selected(),
             institution=self._institution_section.get_selected(),
