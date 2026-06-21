@@ -13,6 +13,6 @@ homepage=https://github.com/dimasciput/gbif-downloader-qgis-plugin
 tags=GBIF,biodiversity,occurrence,download
 category=Database
 icon=gbif-downloader-icon.png
-experimental=True
+experimental=False
 deprecated=False
 license=GPLv3

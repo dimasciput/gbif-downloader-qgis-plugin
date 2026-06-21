@@ -1,0 +1,27 @@
+site_name: GBIF Downloader for QGIS
+site_description: Submit and manage GBIF occurrence download requests directly from QGIS
+site_url: https://dimasciput.github.io/gbif-downloader-qgis-plugin/
+repo_url: https://github.com/dimasciput/gbif-downloader-qgis-plugin
+repo_name: dimasciput/gbif-downloader-qgis-plugin
+
+theme:
+  name: material
+  logo: assets/icon.png
+  favicon: assets/icon.png
+  palette:
+    primary: custom
+  features:
+    - navigation.top
+    - content.code.copy
+    - content.tables
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - tables
+  - attr_list
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true

@@ -1,0 +1,27 @@
+:root {
+  --md-primary-fg-color: #1a3a6b;
+  --md-primary-fg-color--light: #2a5aab;
+  --md-primary-fg-color--dark: #0e2040;
+}
+
+.screenshot {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  margin: 1rem 0;
+  display: block;
+}
+
+.admonition.screenshot-placeholder {
+  border-color: #b0bdd0;
+  background: #f0f4f9;
+}
+.admonition.screenshot-placeholder > .admonition-title {
+  background: #dde6f0;
+  color: #3a5070;
+}
+.admonition.screenshot-placeholder > .admonition-title::before {
+  background-color: #3a5070;
+  -webkit-mask-image: var(--md-admonition-icon--example);
+          mask-image: var(--md-admonition-icon--example);
+}

@@ -16,7 +16,7 @@ PLUGIN_FILES := \
 	tab_action \
 	tab_downloads
 
-.PHONY: all package check clean
+.PHONY: all package check clean docs docs-serve docs-clean
 
 all: package
 
@@ -39,5 +39,16 @@ check: package
 	@unzip -l $(PACKAGE) | grep -q '$(PLUGIN_NAME)/__init__.py'
 	@echo "$(PACKAGE) is ready for QGIS plugin installation"
 
+docs:
+	@command -v mkdocs >/dev/null || pip install mkdocs-material
+	mkdocs build --strict
+
+docs-serve:
+	@command -v mkdocs >/dev/null || pip install mkdocs-material
+	mkdocs serve
+
+docs-clean:
+	rm -rf site/
+
 clean:
-	rm -rf $(BUILD_DIR) $(DIST_DIR)
+	rm -rf $(BUILD_DIR) $(DIST_DIR) site/
