@@ -13,6 +13,14 @@ _BASE = "https://api.gbif.org/v1"
 _AUTH_CFG_SETTINGS_KEY = "gbif_downloader/auth_config_id"
 
 
+def _urlopen(req, timeout: int):
+    """Open only HTTPS URLs; raises ValueError for any other scheme."""
+    url = req.full_url if isinstance(req, urllib.request.Request) else req
+    if not url.lower().startswith("https://"):
+        raise ValueError(f"Only HTTPS URLs are permitted, got: {url!r}")
+    return urllib.request.urlopen(req, timeout=timeout)  # noqa: S310
+
+
 def _auth_header(username: str, password: str) -> dict:
     token = b64encode(f"{username}:{password}".encode()).decode()
     return {"Authorization": f"Basic {token}", "Accept": "application/json"}
@@ -79,7 +87,7 @@ def test_credentials(username: str, password: str) -> tuple[bool, str]:
     url = f"{_BASE}/user/login"
     req = urllib.request.Request(url, headers=_auth_header(username, password))
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with _urlopen(req, timeout=10) as resp:
             if resp.status == 200:
                 return True, "Connected successfully."
             return False, f"Unexpected status: {resp.status}"
@@ -112,7 +120,7 @@ def submit_predicate_download(
     }
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with _urlopen(req, timeout=30) as resp:
             return resp.read().decode().strip().strip('"')
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode()
@@ -123,7 +131,7 @@ def get_download(key: str) -> dict:
     """Fetch metadata for a single download key (public endpoint)."""
     url = f"{_BASE}/occurrence/download/{key}"
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with _urlopen(req, timeout=10) as resp:
         return json.loads(resp.read().decode())
 
 
@@ -132,7 +140,7 @@ def cancel_download(username: str, password: str, key: str) -> None:
     url = f"{_BASE}/occurrence/download/request/{urllib.parse.quote(key)}"
     req = urllib.request.Request(url, headers=_auth_header(username, password), method="DELETE")
     try:
-        with urllib.request.urlopen(req, timeout=10):
+        with _urlopen(req, timeout=10):
             pass
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode()
@@ -158,5 +166,5 @@ def list_downloads(
     query = urllib.parse.urlencode(params, doseq=True)
     url = f"{_BASE}/occurrence/download/user/{urllib.parse.quote(username)}?{query}"
     req = urllib.request.Request(url, headers=_auth_header(username, password))
-    with urllib.request.urlopen(req, timeout=15) as resp:
+    with _urlopen(req, timeout=15) as resp:
         return json.loads(resp.read().decode())

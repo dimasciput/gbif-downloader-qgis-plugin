@@ -3,6 +3,7 @@ BUILD_DIR := build
 DIST_DIR := dist
 PACKAGE := $(DIST_DIR)/$(PLUGIN_NAME).zip
 PLUGIN_FILES := \
+	LICENSE \
 	__init__.py \
 	metadata.txt \
 	plugin.py \
