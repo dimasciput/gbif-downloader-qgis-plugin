@@ -79,7 +79,7 @@ class GbifDownloaderPlugin:
     def _open_credentials(self):
         from .credentials_dialog import CredentialsDialog
         dlg = CredentialsDialog(self.iface.mainWindow())
-        dlg.exec_()
+        dlg.exec()
 
     def unload(self):
         self.iface.removePluginMenu(self.tr("&GBIF Downloader"), self.action_toggle)

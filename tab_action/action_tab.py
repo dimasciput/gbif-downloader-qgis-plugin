@@ -274,7 +274,7 @@ class ActionTab(QWidget, FORM_CLASS):
     def _open_credentials_dialog(self):
         from ..credentials_dialog import CredentialsDialog
         dlg = CredentialsDialog(self)
-        dlg.exec_()
+        dlg.exec()
         self._warn_if_no_credentials()
 
     def _toggle_draw(self):
@@ -440,7 +440,7 @@ class ActionTab(QWidget, FORM_CLASS):
             )
             return
 
-        if DisclaimerDialog(self).exec_() != QDialog.Accepted:
+        if DisclaimerDialog(self).exec() != QDialog.Accepted:
             return
 
         predicate = build_predicate(

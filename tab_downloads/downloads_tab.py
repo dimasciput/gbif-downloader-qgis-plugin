@@ -152,7 +152,7 @@ class DownloadsTab(QWidget, FORM_CLASS):
     def _open_credentials_dialog(self):
         from ..credentials_dialog import CredentialsDialog
         dlg = CredentialsDialog(self)
-        dlg.exec_()
+        dlg.exec()
         self.refresh()
 
     def refresh(self):

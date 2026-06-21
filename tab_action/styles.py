@@ -1,6 +1,7 @@
 HEADER_STYLE = """
 QToolButton {
     font-weight: bold;
+    font-size: 13px;
     padding: 4px 8px;
     border: none;
     border-radius: 3px;
@@ -19,6 +20,7 @@ QToolButton:checked {
 ACTIVE_HEADER_STYLE = """
 QToolButton {
     font-weight: bold;
+    font-size: 13px;
     padding: 4px 8px;
     border: none;
     border-radius: 3px;

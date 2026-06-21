@@ -8,6 +8,7 @@ PLUGIN_FILES := \
 	plugin.py \
 	dock_widget.py \
 	credentials_dialog.py \
+	compat.py \
 	gbif_api.py \
 	icon.svg \
 	gbif-downloader-icon.png \
