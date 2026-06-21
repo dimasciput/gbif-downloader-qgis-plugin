@@ -80,7 +80,9 @@ class ReportWorker(QThread):
         if not cached_zip.exists():
             self.progress.emit("Downloading data…")
             cached_zip.parent.mkdir(exist_ok=True)
-            with urllib.request.urlopen(self._link, timeout=120) as resp:
+            if not self._link.lower().startswith("https://"):
+                raise ValueError(f"Only HTTPS URLs are permitted, got: {self._link!r}")
+            with urllib.request.urlopen(self._link, timeout=120) as resp:  # nosec B310
                 with open(str(cached_zip), "wb") as f:
                     while True:
                         chunk = resp.read(65536)
@@ -159,7 +161,7 @@ class ReportWorker(QThread):
 
 def _render_pdf(key: str, stats: dict, out_path: str):
     writer = QPdfWriter(out_path)
-    writer.setPageSize(QPageSize(QPageSize.A4))
+    writer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
     writer.setResolution(_DPI)
 
     p = QPainter(writer)

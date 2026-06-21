@@ -18,7 +18,7 @@ def _urlopen(req, timeout: int):
     url = req.full_url if isinstance(req, urllib.request.Request) else req
     if not url.lower().startswith("https://"):
         raise ValueError(f"Only HTTPS URLs are permitted, got: {url!r}")
-    return urllib.request.urlopen(req, timeout=timeout)  # noqa: S310
+    return urllib.request.urlopen(req, timeout=timeout)  # nosec B310
 
 
 def _auth_header(username: str, password: str) -> dict:

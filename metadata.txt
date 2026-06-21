@@ -4,7 +4,6 @@ description=Download GBIF occurrence data using the GBIF Download API.
 version=0.1.0
 qgisMinimumVersion=3.28
 qgisMaximumVersion=4.99
-supportsQt6=True
 author=Dimas Ciputra
 email=dimas.ciputra@gmail.com
 about=Submit and manage GBIF occurrence download requests directly from QGIS. Requires a GBIF account.

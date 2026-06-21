@@ -41,7 +41,7 @@ def _filter_cache_key(statuses: list | None = None, from_date: str = "") -> str:
         {"statuses": sorted(statuses or []), "from": from_date or ""},
         sort_keys=True,
     )
-    return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:12]
+    return hashlib.sha1(payload.encode("utf-8"), usedforsecurity=False).hexdigest()[:12]
 
 
 def save_page_cache(

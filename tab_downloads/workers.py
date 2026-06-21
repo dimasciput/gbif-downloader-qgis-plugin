@@ -97,7 +97,9 @@ class DownloadWorker(QThread):
         tmp_path = tmp_zip.name
         tmp_zip.close()
         try:
-            with urllib.request.urlopen(self._url) as resp:
+            if not self._url.lower().startswith("https://"):
+                raise ValueError(f"Only HTTPS URLs are permitted, got: {self._url!r}")
+            with urllib.request.urlopen(self._url) as resp:  # nosec B310
                 total    = int(resp.headers.get("Content-Length", 0))
                 received = 0
                 with open(tmp_path, "wb") as f:
