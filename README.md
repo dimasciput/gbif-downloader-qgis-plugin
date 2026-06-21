@@ -1,4 +1,7 @@
-# GBIF Downloader
+<h1>
+  <img src="gbif-downloader-icon.png" alt="GBIF Downloader icon" width="32" height="32">
+  GBIF Downloader
+</h1>
 
 GBIF Downloader is a QGIS plugin for submitting and managing occurrence
 download requests through the GBIF Download API.
