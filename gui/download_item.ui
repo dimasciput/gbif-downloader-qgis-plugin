@@ -147,7 +147,7 @@
         <item>
          <widget class="QLabel" name="info_label">
           <property name="text">
-           <string>—</string>
+           <string>-</string>
           </property>
           <property name="textInteractionFlags">
            <set>Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -240,22 +240,6 @@
             </property>
             <property name="toolTip">
              <string>Generate PDF report</string>
-            </property>
-            <property name="text">
-             <string/>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="cancel_btn">
-            <property name="minimumSize">
-             <size>
-              <width>50</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Cancel this running download</string>
             </property>
             <property name="text">
              <string/>

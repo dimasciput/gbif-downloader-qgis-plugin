@@ -318,7 +318,7 @@ class ActionTab(QWidget, FORM_CLASS):
         self._stop_draw()
 
     def cleanup(self):
-        """Remove rubber band and map tool — call on plugin unload."""
+        """Remove rubber band and map tool - call on plugin unload."""
         self._stop_draw()
         self._geometry_section.clear_geometry()
 
@@ -398,7 +398,7 @@ class ActionTab(QWidget, FORM_CLASS):
         self._estimate_reply = None
         try:
             if reply.error() != QNetworkReply.NoError:
-                self.status_label.setText("Estimate failed — network error.")
+                self.status_label.setText("Estimate failed - network error.")
                 self.status_label.setStyleSheet("color: red;")
                 return
             import json
@@ -412,7 +412,7 @@ class ActionTab(QWidget, FORM_CLASS):
             self.status_label.setText(f"~{count:,} occurrences  •  {size_str}")
             self.status_label.setStyleSheet("color: grey;")
         except Exception:
-            self.status_label.setText("Estimate failed — unexpected response.")
+            self.status_label.setText("Estimate failed - unexpected response.")
             self.status_label.setStyleSheet("color: red;")
         finally:
             reply.deleteLater()

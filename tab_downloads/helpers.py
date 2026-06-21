@@ -35,7 +35,7 @@ def _find_tsv(zf: zipfile.ZipFile) -> str:
 
 def _fmt_size(size_bytes) -> str:
     if not size_bytes:
-        return "—"
+        return "-"
     for unit in ("B", "KB", "MB", "GB"):
         if size_bytes < 1024:
             return f"{size_bytes:.1f} {unit}"

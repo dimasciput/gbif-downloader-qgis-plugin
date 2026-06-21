@@ -71,9 +71,9 @@ class FilterItemWidget(QWidget, FILTER_ITEM_FORM_CLASS):
         self.condition_frame.setStyleSheet(
             f"background-color: {self._COLORS.get(condition, '#66717f')};"
         )
-        self.key_label.setText(key or "—")
+        self.key_label.setText(key or "-")
         self.operator_label.setText(operator or " ")
-        self.value_edit.setPlainText(value or "—")
+        self.value_edit.setPlainText(value or "-")
         self.value_edit.document().setDocumentMargin(4)
         self.load_geometry_btn.setIcon(QgsApplication.getThemeIcon("/mActionAddOgrLayer.svg"))
         self.load_geometry_btn.setVisible(bool(self._geometry_wkt))
@@ -116,35 +116,63 @@ class DetailDialog(DETAIL_BASE_CLASS, DETAIL_FORM_CLASS):
         key = data.get("key", "")
         self._download_key  = key
         self._download_link = data.get("downloadLink", "")
-        self.setWindowTitle(f"Download Details — {key}")
+        self.setWindowTitle(f"Download Details - {key}")
 
         self.key_label.setText(
             f'<a href="https://www.gbif.org/occurrence/download/{key}">{key}</a>'
         )
-        self.status_label.setText(data.get("status", "—"))
-        self.format_label.setText((data.get("request") or {}).get("format", "—"))
-        self.created_label.setText((data.get("created") or "—")[:19].replace("T", " "))
+        self.status_label.setText(data.get("status", "-"))
+        self.format_label.setText((data.get("request") or {}).get("format", "-"))
+        self.created_label.setText((data.get("created") or "-")[:19].replace("T", " "))
 
         total = data.get("totalRecords")
-        self.records_label.setText(f"{int(total):,}" if total is not None else "—")
+        self.records_label.setText(f"{int(total):,}" if total is not None else "-")
 
         datasets = data.get("numberDatasets")
-        self.datasets_label.setText(f"{int(datasets):,}" if datasets is not None else "—")
+        self.datasets_label.setText(f"{int(datasets):,}" if datasets is not None else "-")
 
         self.size_label.setText(_fmt_size(data.get("size")))
 
         doi = data.get("doi", "")
+        doi_suffix = ""
         if doi:
-            url = doi if doi.startswith("http") else f"https://doi.org/{doi}"
-            self.doi_label.setText(f'<a href="{url}">{doi}</a>')
+            doi_suffix = doi.removeprefix("https://doi.org/").removeprefix("http://doi.org/")
+            doi_url = f"https://doi.org/{doi_suffix}"
+            self.doi_label.setText(f'<a href="{doi_url}">{doi}</a>')
         else:
-            self.doi_label.setText("—")
+            self.doi_label.setText("-")
 
         license_url = data.get("license", "")
         if license_url:
             self.license_label.setText(f'<a href="{license_url}">{license_url}</a>')
         else:
-            self.license_label.setText("—")
+            self.license_label.setText("-")
+
+        if doi_suffix:
+            from qgis.PyQt.QtWidgets import QLabel
+            date_str = datetime.date.today().strftime("%-d %B %Y")
+            citation_text = (
+                f"GBIF.org ({date_str}) GBIF Occurrence Download "
+                f"https://doi.org/{doi_suffix}"
+            )
+            cite_label = QLabel(citation_text)
+            cite_label.setWordWrap(True)
+            cite_label.setTextInteractionFlags(
+                Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
+            )
+            cite_label.setStyleSheet("font-size: 12px;")
+
+            ris_url  = f"https://data.crosscite.org/application/x-research-info-systems/{doi_suffix}"
+            bib_url  = f"https://data.crosscite.org/application/x-bibtex/{doi_suffix}"
+            export_label = QLabel(
+                f'<a href="{ris_url}">Download RIS</a>'
+                f'&nbsp;&nbsp;·&nbsp;&nbsp;'
+                f'<a href="{bib_url}">Download BibTeX</a>'
+            )
+            export_label.setOpenExternalLinks(True)
+
+            self.formLayout_citation.addRow("Cite as:", cite_label)
+            self.formLayout_citation.addRow("Export:", export_label)
 
         predicate = (data.get("request") or {}).get("predicate")
         self._populate_filter_list(predicate)
@@ -209,13 +237,10 @@ class DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
         self.zip_btn.setIcon(QgsApplication.getThemeIcon("/mActionFileSave.svg"))
         self.details_btn.setIcon(QgsApplication.getThemeIcon("/mActionIdentify.svg"))
         self.report_btn.setIcon(QgsApplication.getThemeIcon("/mActionSaveAsPDF.svg"))
-        self.cancel_btn.setIcon(QgsApplication.getThemeIcon("/mActionDeleteSelectedFeatures.svg"))
-
         self.load_btn.clicked.connect(lambda: tab._save(self._download_link, "map", self._key))
         self.zip_btn.clicked.connect(lambda: tab._save(self._download_link, "zip", self._key))
         self.details_btn.clicked.connect(self._open_details)
         self.report_btn.clicked.connect(lambda: tab._generate_report(self._download_link, self._key))
-        self.cancel_btn.clicked.connect(lambda: tab._confirm_cancel(self._key))
 
         self.update_data(data)
 
@@ -275,4 +300,3 @@ class DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
         self.load_btn.setVisible(has_link)
         self.zip_btn.setVisible(has_link)
         self.report_btn.setVisible(has_link)
-        self.cancel_btn.setVisible(self._status in PENDING)

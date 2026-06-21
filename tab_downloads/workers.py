@@ -60,26 +60,6 @@ class PollWorker(QThread):
                 pass
 
 
-class CancelWorker(QThread):
-    finished = pyqtSignal(str)
-    error    = pyqtSignal(str)
-
-    def __init__(self, key: str):
-        super().__init__()
-        self._key = key
-
-    def run(self):
-        from ..gbif_api import get_credentials, cancel_download
-        username, password = get_credentials()
-        if not username:
-            self.error.emit("No GBIF credentials configured.")
-            return
-        try:
-            cancel_download(username, password, self._key)
-            self.finished.emit(self._key)
-        except Exception as exc:
-            self.error.emit(str(exc))
-
 
 class DownloadWorker(QThread):
     """

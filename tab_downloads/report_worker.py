@@ -215,7 +215,7 @@ def _draw_summary_cards(p: QPainter, W: int, y: int, stats: dict) -> int:
     y = _section_title(p, W, y, "Summary")
 
     yr = stats["year_range"]
-    yr_str = f"{yr[0]} – {yr[1]}" if yr[0] else "—"
+    yr_str = f"{yr[0]} – {yr[1]}" if yr[0] else "-"
     cards = [
         ("Total Records",  f"{stats['total']:,}"),
         ("Unique Species", f"{stats['unique_species']:,}"),

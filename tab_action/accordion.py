@@ -111,7 +111,7 @@ class CheckboxFilterSection(AccordionSection):
 
     Args:
         title:   Header label.
-        items:   Sequence of ``(label, value)`` pairs — one checkbox per entry.
+        items:   Sequence of ``(label, value)`` pairs - one checkbox per entry.
         columns: Number of checkboxes per row (default 4).
     """
 
