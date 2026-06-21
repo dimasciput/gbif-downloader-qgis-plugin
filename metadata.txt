@@ -16,3 +16,4 @@ category=Database
 icon=gbif-downloader-icon.png
 experimental=True
 deprecated=False
+license=GPLv3
