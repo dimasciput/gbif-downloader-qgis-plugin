@@ -1,8 +1,6 @@
 import os
 import tempfile
 
-import sip
-
 from qgis.core import QgsProject, QgsVectorLayer
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, QDate, QSize, QTimer, QUrl
@@ -28,6 +26,13 @@ from .report_worker import ReportWorker
 from .workers import DownloadWorker, FetchPageWorker, PollWorker
 
 PAGE_LIMIT = 50
+
+
+def _safe_setText(lbl, text: str):
+    try:
+        lbl.setText(text)
+    except RuntimeError:
+        pass
 
 _GUI_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "gui")
 FORM_CLASS, _ = uic.loadUiType(os.path.join(_GUI_DIR, "downloads_tab.ui"))
@@ -299,7 +304,7 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self.status_label.setText("Extracting from cache…" if using_cache else "Downloading… 0%")
         self.status_label.setStyleSheet("color: grey;")
         w = DownloadWorker(url, dest, fmt, source_zip=source_zip)
-        w.progress.connect(lambda p, lbl=self.status_label: lbl.setText(f"Downloading… {p}%") if not sip.isdeleted(lbl) else None)
+        w.progress.connect(lambda p, lbl=self.status_label: _safe_setText(lbl, f"Downloading… {p}%"))
         w.finished.connect(self._on_saved)
         w.error.connect(self._on_error)
         self._download_workers.append(w)
@@ -341,7 +346,7 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self.status_label.setText("Generating report…")
         self.status_label.setStyleSheet("color: grey;")
         w = ReportWorker(key, url)
-        w.progress.connect(lambda msg, lbl=self.status_label: lbl.setText(msg) if not sip.isdeleted(lbl) else None)
+        w.progress.connect(lambda msg, lbl=self.status_label: _safe_setText(lbl, msg))
         w.finished.connect(self._on_report_done)
         w.error.connect(self._on_report_error)
         self._report_workers.append(w)
