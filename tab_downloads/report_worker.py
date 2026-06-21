@@ -68,23 +68,30 @@ class ReportWorker(QThread):
 
     def _get_tsv(self):
         import urllib.request
-        cached = os.path.join(tempfile.gettempdir(), f"{self._key}.tsv")
-        if os.path.exists(cached):
-            return cached, None
+        from .cache import cache_dir
 
-        tmp_zip_fd, tmp_zip = tempfile.mkstemp(suffix=".zip")
-        os.close(tmp_zip_fd)
-        tmp_tsv_fd, tmp_tsv = tempfile.mkstemp(suffix=".tsv")
-        os.close(tmp_tsv_fd)
-        try:
+        cached_tsv = os.path.join(tempfile.gettempdir(), f"{self._key}.tsv")
+        if os.path.exists(cached_tsv):
+            return cached_tsv, None
+
+        # Reuse cached zip if "Save ZIP" was already run
+        cached_zip = cache_dir() / self._key / "download.zip"
+
+        if not cached_zip.exists():
+            self.progress.emit("Downloading data…")
+            cached_zip.parent.mkdir(exist_ok=True)
             with urllib.request.urlopen(self._link, timeout=120) as resp:
-                with open(tmp_zip, "wb") as f:
+                with open(str(cached_zip), "wb") as f:
                     while True:
                         chunk = resp.read(65536)
                         if not chunk:
                             break
                         f.write(chunk)
-            with zipfile.ZipFile(tmp_zip) as zf:
+
+        tmp_tsv_fd, tmp_tsv = tempfile.mkstemp(suffix=".tsv")
+        os.close(tmp_tsv_fd)
+        try:
+            with zipfile.ZipFile(str(cached_zip)) as zf:
                 name = _find_tsv(zf)
                 with zf.open(name) as src, open(tmp_tsv, "wb") as dst:
                     dst.write(src.read())
@@ -93,9 +100,6 @@ class ReportWorker(QThread):
             if os.path.exists(tmp_tsv):
                 os.unlink(tmp_tsv)
             raise
-        finally:
-            if os.path.exists(tmp_zip):
-                os.unlink(tmp_zip)
 
     def _parse(self, tsv_path: str) -> dict:
         year_counts    = Counter()

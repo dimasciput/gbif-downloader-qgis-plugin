@@ -2,12 +2,13 @@ import os
 import shutil
 import tempfile
 
+import sip
+
 from qgis.core import QgsProject, QgsVectorLayer
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, QDate, QSize, QTimer, QUrl
 from qgis.PyQt.QtWidgets import (
     QAction,
-    QFileDialog,
     QListWidgetItem,
     QMenu,
     QMessageBox,
@@ -316,28 +317,40 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self._cancel_workers = [w for w in self._cancel_workers if w.isRunning()]
 
     def _save(self, url: str, fmt: str, key: str = ""):
-        if fmt == "map":
-            dest = os.path.join(tempfile.gettempdir(), f"{key or 'gbif_download'}.tsv")
-        elif fmt == "zip":
-            dest, _ = QFileDialog.getSaveFileName(
-                self, "Save ZIP", "", "ZIP files (*.zip);;All files (*)"
-            )
-            if not dest:
+        from qgis.PyQt.QtGui import QDesktopServices
+        source_zip = ""
+        if fmt == "zip":
+            key_dir = cache_dir() / key
+            key_dir.mkdir(exist_ok=True)
+            dest = str(key_dir / "download.zip")
+            if os.path.exists(dest):
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(key_dir)))
+                self.status_label.setText("Already saved — opened folder")
+                self.status_label.setStyleSheet("color: green;")
                 return
+        elif fmt == "map":
+            dest = os.path.join(tempfile.gettempdir(), f"{key or 'gbif_download'}.tsv")
+            cached_zip = str(cache_dir() / key / "download.zip")
+            source_zip = cached_zip if os.path.exists(cached_zip) else ""
         else:
             return
-        self.status_label.setText("Downloading… 0%")
+        using_cache = bool(source_zip)
+        self.status_label.setText("Extracting from cache…" if using_cache else "Downloading… 0%")
         self.status_label.setStyleSheet("color: grey;")
-        w = DownloadWorker(url, dest, fmt)
-        w.progress.connect(lambda p: self.status_label.setText(f"Downloading… {p}%"))
+        w = DownloadWorker(url, dest, fmt, source_zip=source_zip)
+        w.progress.connect(lambda p, lbl=self.status_label: lbl.setText(f"Downloading… {p}%") if not sip.isdeleted(lbl) else None)
         w.finished.connect(self._on_saved)
         w.error.connect(self._on_error)
         self._download_workers.append(w)
         w.start()
 
     def _on_saved(self, path: str, fmt: str):
+        from qgis.PyQt.QtGui import QDesktopServices
         name = os.path.splitext(os.path.basename(path))[0]
-        if fmt == "map":
+        if fmt == "zip":
+            QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
+            self.status_label.setText("ZIP saved, folder opened")
+        elif fmt == "map":
             file_url = QUrl.fromLocalFile(path).toString()
             uri = (
                 f"{file_url}"
@@ -353,16 +366,21 @@ class DownloadsTab(QWidget, FORM_CLASS):
                 self.status_label.setText(f"Layer added: {name}")
             else:
                 self.status_label.setText(f"Saved but could not load layer: {path}")
-        else:
-            self.status_label.setText(f"Saved: {os.path.basename(path)}")
         self.status_label.setStyleSheet("color: green;")
         self._download_workers = [w for w in self._download_workers if w.isRunning()]
 
     def _generate_report(self, url: str, key: str):
+        from qgis.PyQt.QtGui import QDesktopServices
+        existing = cache_dir() / key / "report.pdf"
+        if existing.exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(existing.parent)))
+            self.status_label.setText(f"Report already exists: {key}")
+            self.status_label.setStyleSheet("color: green;")
+            return
         self.status_label.setText("Generating report…")
         self.status_label.setStyleSheet("color: grey;")
         w = ReportWorker(key, url)
-        w.progress.connect(lambda msg: self.status_label.setText(msg))
+        w.progress.connect(lambda msg, lbl=self.status_label: lbl.setText(msg) if not sip.isdeleted(lbl) else None)
         w.finished.connect(self._on_report_done)
         w.error.connect(self._on_report_error)
         self._report_workers.append(w)

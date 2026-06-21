@@ -56,6 +56,8 @@ class AutocompleteFilterSection(AccordionSection):
 
     def parse_item(self, item) -> tuple[str, str]:
         """Return (display_title, key) from a single suggestion item."""
+        if isinstance(item, str):
+            return item.strip(), ""
         return item.get(self.item_key(), "").strip(), item.get("key", "")
 
     def extra_query_params(self) -> dict:

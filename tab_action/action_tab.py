@@ -404,7 +404,12 @@ class ActionTab(QWidget, FORM_CLASS):
             import json
             data = json.loads(bytes(reply.readAll()).decode("utf-8"))
             count = data.get("count", 0)
-            self.status_label.setText(f"~{count:,} matching occurrences")
+            size_gb = count * 112 / 1_000_000_000
+            if size_gb >= 1:
+                size_str = f"~{size_gb:.1f} GB"
+            else:
+                size_str = f"~{size_gb * 1000:.0f} MB"
+            self.status_label.setText(f"~{count:,} occurrences  •  {size_str}")
             self.status_label.setStyleSheet("color: grey;")
         except Exception:
             self.status_label.setText("Estimate failed — unexpected response.")

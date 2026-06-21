@@ -86,19 +86,33 @@ class DownloadWorker(QThread):
     fmt:
       "zip" – download the raw ZIP and save to dest
       "map" – download ZIP, extract TSV to dest
+
+    source_zip: if set and the file exists, skip the download and use this zip directly.
     """
     progress = pyqtSignal(int)
     finished = pyqtSignal(str, str)  # (saved path, fmt)
     error    = pyqtSignal(str)
 
-    def __init__(self, url: str, dest: str, fmt: str):
+    def __init__(self, url: str, dest: str, fmt: str, source_zip: str = ""):
         super().__init__()
-        self._url  = url
-        self._dest = dest
-        self._fmt  = fmt
+        self._url        = url
+        self._dest       = dest
+        self._fmt        = fmt
+        self._source_zip = source_zip
 
     def run(self):
         import urllib.request
+
+        if self._source_zip and os.path.exists(self._source_zip):
+            try:
+                if self._fmt == "map":
+                    self._extract_tsv(self._source_zip, self._dest)
+                self.progress.emit(100)
+                self.finished.emit(self._dest, self._fmt)
+            except Exception as exc:
+                self.error.emit(str(exc))
+            return
+
         tmp_zip  = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
         tmp_path = tmp_zip.name
         tmp_zip.close()
