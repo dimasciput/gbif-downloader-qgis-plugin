@@ -130,4 +130,4 @@ make clean    # remove build/ and dist/
 
 ## License
 
-No license has been specified yet.
+This project is licensed under the GPL-3.0 License.
