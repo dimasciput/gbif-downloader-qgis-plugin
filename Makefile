@@ -10,7 +10,6 @@ PLUGIN_FILES := \
 	credentials_dialog.py \
 	compat.py \
 	gbif_api.py \
-	icon.svg \
 	gbif-downloader-icon.png \
 	gui \
 	tab_action \
