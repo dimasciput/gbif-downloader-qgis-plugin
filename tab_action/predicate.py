@@ -91,6 +91,7 @@ def build_predicate(
     parts = [
         {"type": "equals", "key": "HAS_COORDINATE",       "value": "true"},
         {"type": "equals", "key": "HAS_GEOSPATIAL_ISSUE",  "value": "false"},
+        {"type": "equals", "key": "OCCURRENCE_STATUS",     "value": "PRESENT"},
     ]
     if year_predicates:
         parts.extend(year_predicates)
@@ -173,7 +174,7 @@ _IUCN_LABEL = {
     "DD": "DD (Data Deficient)",
     "NE": "NE (Not Evaluated)",
 }
-_SKIP_KEYS = {"HAS_COORDINATE", "HAS_GEOSPATIAL_ISSUE"}
+_SKIP_KEYS = {"HAS_COORDINATE", "HAS_GEOSPATIAL_ISSUE", "OCCURRENCE_STATUS"}
 _COUNTRY_LABEL_BY_CODE = {code: name for name, code in COUNTRIES}
 
 
@@ -204,3 +205,65 @@ def format_predicate_summary(predicate: dict) -> str:
         elif ptype in _OP_SYMBOL:
             lines.append(f"  {label}: {_OP_SYMBOL[ptype]} {p['value']}")
     return "\n".join(lines) if lines else "  (no additional filters)"
+
+
+_SEARCH_PARAM = {
+    "TAXON_KEY":                        "taxonKey",
+    "SCIENTIFIC_NAME":                  "scientificName",
+    "FAMILY_KEY":                       "familyKey",
+    "ORDER_KEY":                        "orderKey",
+    "CLASS_KEY":                        "classKey",
+    "DATASET_KEY":                      "datasetKey",
+    "INSTITUTION_CODE":                 "institutionCode",
+    "COUNTRY":                          "country",
+    "BASIS_OF_RECORD":                  "basisOfRecord",
+    "YEAR":                             "year",
+    "MONTH":                            "month",
+    "IUCN_RED_LIST_CATEGORY":           "iucnRedListCategory",
+    "COORDINATE_UNCERTAINTY_IN_METERS": "coordinateUncertaintyInMeters",
+    "ELEVATION":                        "elevation",
+    "HAS_COORDINATE":                   "hasCoordinate",
+    "HAS_GEOSPATIAL_ISSUE":             "hasGeospatialIssue",
+    "OCCURRENCE_STATUS":                "occurrenceStatus",
+}
+
+_RANGE_OPS = {
+    "greaterThanOrEquals": "gte",
+    "greaterThan":         "gte",
+    "lessThanOrEquals":    "lte",
+    "lessThan":            "lte",
+}
+
+
+def predicate_to_search_params(predicate: dict) -> list[tuple[str, str]]:
+    """Convert a download predicate to occurrence search API query parameters."""
+    params: list[tuple[str, str]] = []
+    ranges: dict[str, dict] = {}
+
+    for p in predicate.get("predicates", []):
+        ptype = p.get("type")
+        key = p.get("key", "")
+        search_key = _SEARCH_PARAM.get(key)
+
+        if ptype == "equals":
+            if search_key:
+                params.append((search_key, str(p["value"])))
+        elif ptype == "in":
+            if search_key:
+                for v in p.get("values", []):
+                    params.append((search_key, str(v)))
+        elif ptype == "within":
+            params.append(("geometry", p["geometry"]))
+        elif ptype in _RANGE_OPS:
+            if search_key:
+                side = _RANGE_OPS[ptype]
+                ranges.setdefault(key, {})["search_key"] = search_key
+                ranges.setdefault(key, {})[side] = str(p["value"])
+
+    for range_vals in ranges.values():
+        search_key = range_vals["search_key"]
+        gte = range_vals.get("gte", "*")
+        lte = range_vals.get("lte", "*")
+        params.append((search_key, f"{gte},{lte}"))
+
+    return params

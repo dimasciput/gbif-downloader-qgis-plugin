@@ -180,6 +180,7 @@ class AutocompleteFilterSection(AccordionSection):
         key = self._suggestion_keys.get(title, "")
         self._selected = self.filter_object(title, key)
         self._update_active()
+        self.filter_changed.emit()
 
     def _set_suggestions(self, suggestions: list[tuple[str, str]]):
         self._model.clear()
@@ -193,6 +194,7 @@ class AutocompleteFilterSection(AccordionSection):
         self._edit.clear()
         self._model.clear()
         self._update_active()
+        self.filter_changed.emit()
 
     def _update_active(self):
         self.set_active(self._selected is not None)

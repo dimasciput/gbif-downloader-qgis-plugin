@@ -81,6 +81,7 @@ class CountryFilterSection(AccordionSection):
         self._selected_list.addItem(item)
         self._edit.clear()
         self._update_active()
+        self.filter_changed.emit()
 
     def _code_for_text(self, text: str) -> str:
         normalized = text.strip().casefold()
@@ -93,12 +94,14 @@ class CountryFilterSection(AccordionSection):
             self._selected_codes.discard(item.data(Qt.UserRole))
             self._selected_list.takeItem(self._selected_list.row(item))
         self._update_active()
+        self.filter_changed.emit()
 
     def _clear(self):
         self._selected_codes.clear()
         self._selected_list.clear()
         self._edit.clear()
         self._update_active()
+        self.filter_changed.emit()
 
     def _update_active(self):
         self.set_active(bool(self._selected_codes))

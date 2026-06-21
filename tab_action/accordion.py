@@ -25,6 +25,7 @@ class AccordionSection(QWidget):
     """
 
     toggled = pyqtSignal(bool)
+    filter_changed = pyqtSignal()
 
     def __init__(self, title: str, description: str = "", parent=None):
         super().__init__(parent)
@@ -129,6 +130,7 @@ class CheckboxFilterSection(AccordionSection):
         for i, (label, value) in enumerate(items):
             cb = QCheckBox(label)
             cb.stateChanged.connect(self._update_active)
+            cb.stateChanged.connect(lambda _: self.filter_changed.emit())
             layout.addWidget(cb, i // columns, i % columns)
             self._checkboxes.append((cb, value))
 
@@ -210,6 +212,8 @@ class YearFilterSection(AccordionSection):
         layout.addWidget(clear_btn,       1, 3)
 
         self._mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        self._year_from.valueChanged.connect(lambda _: self.filter_changed.emit())
+        self._year_to.valueChanged.connect(lambda _: self.filter_changed.emit())
         clear_btn.clicked.connect(self._clear)
         self.toggled.connect(lambda _: self._update_active())
         self._on_mode_changed(0)
@@ -228,6 +232,7 @@ class YearFilterSection(AccordionSection):
         self._label_to.setVisible(is_between)
         self._year_to.setVisible(is_between)
         self._update_active()
+        self.filter_changed.emit()
 
     def _clear(self):
         current_year = datetime.date.today().year
@@ -312,6 +317,8 @@ class NumericRangeFilterSection(AccordionSection):
         layout.addWidget(clear_btn,       1, 3)
 
         self._mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        self._spin_from.valueChanged.connect(lambda _: self.filter_changed.emit())
+        self._spin_to.valueChanged.connect(lambda _: self.filter_changed.emit())
         clear_btn.clicked.connect(self._clear)
         self.toggled.connect(lambda _: self._update_active())
         self._on_mode_changed(0)
@@ -330,6 +337,7 @@ class NumericRangeFilterSection(AccordionSection):
         self._label_to.setVisible(is_between)
         self._spin_to.setVisible(is_between)
         self._update_active()
+        self.filter_changed.emit()
 
     def _clear(self):
         self._mode_combo.setCurrentIndex(0)

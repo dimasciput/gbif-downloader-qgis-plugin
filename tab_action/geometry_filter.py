@@ -165,6 +165,7 @@ class GeometryFilterSection(AccordionSection):
         self.set_active(True)
         self._status_label.setText(message)
         self._status_label.setStyleSheet("color: green;")
+        self.filter_changed.emit()
 
     def _set_geometry_error(self, message: str):
         self.clear_geometry()
@@ -180,6 +181,7 @@ class GeometryFilterSection(AccordionSection):
         self.set_active(False)
         self._status_label.setText("")
         self._status_label.setStyleSheet("")
+        self.filter_changed.emit()
 
     def get_geometry_wkt(self) -> str:
         return self._geometry_wkt

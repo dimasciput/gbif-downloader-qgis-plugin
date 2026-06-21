@@ -1,7 +1,8 @@
 import os
 
 from qgis.PyQt import uic
-from qgis.PyQt.QtCore import Qt, pyqtSignal
+from qgis.PyQt.QtCore import Qt, QTimer, QUrl, QUrlQuery, pyqtSignal
+from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -21,7 +22,7 @@ from .accordion import (
 )
 from .country_filter import CountryFilterSection
 from .geometry_filter import GeometryFilterSection
-from .predicate import build_predicate, format_predicate_summary
+from .predicate import build_predicate, format_predicate_summary, predicate_to_search_params
 from .polygon_tool import PolygonTool
 from .taxon_filter import HigherTaxonFilterSection
 from .dataset_filter import DatasetFilterSection
@@ -221,6 +222,30 @@ class ActionTab(QWidget, FORM_CLASS):
         self._geometry_section.set_draw_handlers(self._toggle_draw, self._stop_draw)
         self._params_layout.insertRow(11, self._geometry_section)
 
+        self._estimate_manager = QNetworkAccessManager(self)
+        self._estimate_reply = None
+
+        self._estimate_timer = QTimer(self)
+        self._estimate_timer.setSingleShot(True)
+        self._estimate_timer.setInterval(600)
+        self._estimate_timer.timeout.connect(self._estimate)
+
+        for section in (
+            self._taxon_filter,
+            self._higher_taxon_section,
+            self._dataset_section,
+            self._institution_section,
+            self._basis_section,
+            self._country_section,
+            self._year_section,
+            self._coord_uncertainty_section,
+            self._elevation_section,
+            self._month_section,
+            self._conservation_section,
+            self._geometry_section,
+        ):
+            section.filter_changed.connect(self._on_filter_changed)
+
         self.submit_btn.clicked.connect(self._submit)
 
         self._credentials_btn = QPushButton("Configure GBIF Credentials…")
@@ -329,6 +354,63 @@ class ActionTab(QWidget, FORM_CLASS):
 
     def _get_higher_taxon_filter(self):
         return self._higher_taxon_section.get_selected()
+
+    def _on_filter_changed(self):
+        self._estimate_timer.start()
+
+    def _estimate(self):
+        predicate = build_predicate(
+            taxon=self._taxon_filter.get_selected(),
+            higher_taxon=self._get_higher_taxon_filter(),
+            dataset=self._dataset_section.get_selected(),
+            institution=self._institution_section.get_selected(),
+            country=self._get_country_filter(),
+            basis=self._get_basis_filter(),
+            geometry_wkt=self._geometry_section.get_geometry_wkt(),
+            year_predicates=self._year_section.get_year_predicate(),
+            coordinate_uncertainty_predicates=self._coord_uncertainty_section.get_predicate(),
+            elevation_predicates=self._elevation_section.get_predicate(),
+            months=self._get_month_filter(),
+            conservation_statuses=self._get_conservation_filter(),
+        )
+
+        if self._estimate_reply and self._estimate_reply.isRunning():
+            self._estimate_reply.abort()
+
+        url = QUrl("https://api.gbif.org/v1/occurrence/search")
+        query = QUrlQuery()
+        query.addQueryItem("limit", "0")
+        for key, value in predicate_to_search_params(predicate):
+            query.addQueryItem(key, value)
+        url.setQuery(query)
+
+        request = QNetworkRequest(url)
+        request.setRawHeader(b"Accept", b"application/json")
+
+        self.status_label.setText("Counting…")
+        self.status_label.setStyleSheet("color: grey;")
+
+        self._estimate_reply = self._estimate_manager.get(request)
+        self._estimate_reply.finished.connect(self._on_estimate_reply)
+
+    def _on_estimate_reply(self):
+        reply = self._estimate_reply
+        self._estimate_reply = None
+        try:
+            if reply.error() != QNetworkReply.NoError:
+                self.status_label.setText("Estimate failed — network error.")
+                self.status_label.setStyleSheet("color: red;")
+                return
+            import json
+            data = json.loads(bytes(reply.readAll()).decode("utf-8"))
+            count = data.get("count", 0)
+            self.status_label.setText(f"~{count:,} matching occurrences")
+            self.status_label.setStyleSheet("color: grey;")
+        except Exception:
+            self.status_label.setText("Estimate failed — unexpected response.")
+            self.status_label.setStyleSheet("color: red;")
+        finally:
+            reply.deleteLater()
 
     def _submit(self):
         has_filter = any([
