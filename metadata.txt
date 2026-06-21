@@ -12,6 +12,6 @@ tracker=https://github.com/dimasciputra/gbif-project-2026/issues
 repository=https://github.com/dimasciputra/gbif-project-2026
 tags=GBIF,biodiversity,occurrence,download
 category=Database
-icon=icon.svg
+icon=gbif-downloader-icon.png
 experimental=True
 deprecated=False
