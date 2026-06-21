@@ -235,7 +235,7 @@ class DownloadItemWidget(QWidget, ITEM_FORM_CLASS):
 
         self.load_btn.setIcon(QgsApplication.getThemeIcon("/mActionAddOgrLayer.svg"))
         self.zip_btn.setIcon(QgsApplication.getThemeIcon("/mActionFileSave.svg"))
-        self.details_btn.setIcon(QgsApplication.getThemeIcon("/mActionIdentify.svg"))
+        self.details_btn.setIcon(QgsApplication.getThemeIcon("/mActionFormView.svg"))
         self.report_btn.setIcon(QgsApplication.getThemeIcon("/mActionSaveAsPDF.svg"))
         self.load_btn.clicked.connect(lambda: tab._save(self._download_link, "map", self._key))
         self.zip_btn.clicked.connect(lambda: tab._save(self._download_link, "zip", self._key))

@@ -246,7 +246,7 @@ class DownloadsTab(QWidget, FORM_CLASS):
             return
         widget    = DownloadItemWidget(data, self)
         list_item = QListWidgetItem()
-        list_item.setSizeHint(QSize(0, 125))
+        list_item.setSizeHint(QSize(0, 100))
         if at_top:
             self.list_widget.insertItem(0, list_item)
         else:

@@ -1,13 +1,19 @@
+import os
+
+from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QDockWidget, QTabWidget, QVBoxLayout, QWidget
 
 from .tab_action import ActionTab
 from .tab_downloads import DownloadsTab
+
+_PLUGIN_DIR = os.path.dirname(__file__)
 
 
 class GbifDownloaderDock(QDockWidget):
     def __init__(self, iface, parent=None):
         super().__init__("GBIF Downloader", parent)
         self.setObjectName("GbifDownloaderDock")
+        self.setWindowIcon(QIcon(os.path.join(_PLUGIN_DIR, "gbif-downloader-icon.png")))
         self.setMinimumWidth(360)
 
         container = QWidget()
