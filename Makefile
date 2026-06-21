@@ -1,19 +1,42 @@
 PLUGIN_NAME := gbif_downloader
+BUILD_DIR := build
 DIST_DIR := dist
 PACKAGE := $(DIST_DIR)/$(PLUGIN_NAME).zip
+PLUGIN_FILES := \
+	__init__.py \
+	metadata.txt \
+	plugin.py \
+	dock_widget.py \
+	credentials_dialog.py \
+	gbif_api.py \
+	icon.svg \
+	gbif-downloader-icon.png \
+	gui \
+	tab_action \
+	tab_downloads
 
-.PHONY: package clean
+.PHONY: all package check clean
+
+all: package
 
 package:
-	rm -rf build/$(PLUGIN_NAME) $(PACKAGE)
-	mkdir -p build/$(PLUGIN_NAME) $(DIST_DIR)
-	cp -R __init__.py metadata.txt plugin.py dock_widget.py credentials_dialog.py \
-		gbif_api.py icon.svg gui tab_action tab_downloads build/$(PLUGIN_NAME)/
-	find build/$(PLUGIN_NAME) -type d -name __pycache__ -prune -exec rm -rf {} +
-	find build/$(PLUGIN_NAME) -type f -name '*.py[co]' -delete
-	cd build && zip -qr ../$(PACKAGE) $(PLUGIN_NAME)
-	rm -rf build/$(PLUGIN_NAME)
+	@test -f metadata.txt
+	@test -f __init__.py
+	@command -v zip >/dev/null
+	rm -rf $(BUILD_DIR)/$(PLUGIN_NAME) $(PACKAGE)
+	mkdir -p $(BUILD_DIR)/$(PLUGIN_NAME) $(DIST_DIR)
+	cp -R $(PLUGIN_FILES) $(BUILD_DIR)/$(PLUGIN_NAME)/
+	find $(BUILD_DIR)/$(PLUGIN_NAME) -type d -name __pycache__ -prune -exec rm -rf {} +
+	find $(BUILD_DIR)/$(PLUGIN_NAME) -type f -name '*.py[co]' -delete
+	cd $(BUILD_DIR) && zip -qr ../$(PACKAGE) $(PLUGIN_NAME)
+	rm -rf $(BUILD_DIR)/$(PLUGIN_NAME)
 	@echo "Created $(PACKAGE)"
 
+check: package
+	@unzip -t $(PACKAGE) >/dev/null
+	@unzip -l $(PACKAGE) | grep -q '$(PLUGIN_NAME)/metadata.txt'
+	@unzip -l $(PACKAGE) | grep -q '$(PLUGIN_NAME)/__init__.py'
+	@echo "$(PACKAGE) is ready for QGIS plugin installation"
+
 clean:
-	rm -rf build dist
+	rm -rf $(BUILD_DIR) $(DIST_DIR)

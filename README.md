@@ -27,7 +27,7 @@ QGIS requires the plugin directory to be named `gbif_downloader`. Clone the
 repository into the QGIS profile's plugin directory:
 
 ```bash
-git clone https://github.com/dimasciputra/gbif-project-2026.git \
+git clone https://github.com/dimasciputra/gbif-downloader-qgis-plugin.git \
   ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/gbif_downloader
 ```
 
