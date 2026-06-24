@@ -7,16 +7,9 @@ from qgis.core import (
 )
 
 from .countries import COUNTRIES
-from .taxon_filter import HigherTaxon
 from .dataset_filter import Dataset
 from .institution_filter import Institution
 from .scientific_name_filter import Taxon
-
-_RANK_PREDICATE_KEY = {
-    "FAMILY":  "FAMILY_KEY",
-    "ORDER":   "ORDER_KEY",
-    "CLASS":   "CLASS_KEY",
-}
 
 _WGS84 = QgsCoordinateReferenceSystem("EPSG:4326")
 
@@ -75,14 +68,13 @@ def _ring_signed_area(ring: list) -> float:
 
 
 def build_predicate(
-    taxon: Taxon | None,
+    taxa: list[Taxon],
     country: str | list[str],
     basis: str | list[str],
     geometry_wkt: str,
     year_predicates: list | None = None,
     months: list | None = None,
     conservation_statuses: list | None = None,
-    higher_taxon: HigherTaxon | None = None,
     dataset: Dataset | None = None,
     institution: Institution | None = None,
     coordinate_uncertainty_predicates: list | None = None,
@@ -95,15 +87,21 @@ def build_predicate(
     ]
     if year_predicates:
         parts.extend(year_predicates)
-    if taxon:
-        if taxon.key:
-            parts.append(
-                {"type": "equals", "key": "TAXON_KEY", "value": taxon.key}
-            )
-        else:
-            parts.append(
-                {"type": "equals", "key": "SCIENTIFIC_NAME", "value": taxon.name}
-            )
+    if taxa:
+        keyed = [t for t in taxa if t.key]
+        unkeyed = [t for t in taxa if not t.key]
+        sub = []
+        if keyed:
+            if len(keyed) == 1:
+                sub.append({"type": "equals", "key": "TAXON_KEY", "value": keyed[0].key})
+            else:
+                sub.append({"type": "in", "key": "TAXON_KEY", "values": [t.key for t in keyed]})
+        for t in unkeyed:
+            sub.append({"type": "equals", "key": "SCIENTIFIC_NAME", "value": t.name})
+        if len(sub) == 1:
+            parts.append(sub[0])
+        elif sub:
+            parts.append({"type": "or", "predicates": sub})
     if country:
         if isinstance(country, list):
             parts.append({"type": "in", "key": "COUNTRY", "values": country})
@@ -120,10 +118,6 @@ def build_predicate(
         parts.append({"type": "in", "key": "MONTH", "values": [str(m) for m in months]})
     if conservation_statuses:
         parts.append({"type": "in", "key": "IUCN_RED_LIST_CATEGORY", "values": conservation_statuses})
-    if higher_taxon:
-        pred_key = _RANK_PREDICATE_KEY.get(higher_taxon.rank)
-        if pred_key:
-            parts.append({"type": "equals", "key": pred_key, "value": higher_taxon.key})
     if dataset and dataset.key:
         parts.append({"type": "equals", "key": "DATASET_KEY", "value": dataset.key})
     if institution and institution.name:
@@ -200,6 +194,15 @@ def format_predicate_summary(predicate: dict) -> str:
             elif key == "IUCN_RED_LIST_CATEGORY":
                 values = [_IUCN_LABEL.get(v, v) for v in values]
             lines.append(f"  {label}: {', '.join(str(v) for v in values)}")
+        elif ptype == "or":
+            sub_vals = []
+            for sp in p.get("predicates", []):
+                if sp.get("type") == "equals":
+                    sub_vals.append(sp.get("value", ""))
+                elif sp.get("type") == "in":
+                    sub_vals.extend(sp.get("values", []))
+            if sub_vals:
+                lines.append(f"  Scientific name: {', '.join(sub_vals)}")
         elif ptype == "within":
             lines.append("  Geometry: polygon filter active")
         elif ptype in _OP_SYMBOL:
@@ -252,6 +255,15 @@ def predicate_to_search_params(predicate: dict) -> list[tuple[str, str]]:
             if search_key:
                 for v in p.get("values", []):
                     params.append((search_key, str(v)))
+        elif ptype == "or":
+            for sp in p.get("predicates", []):
+                sp_key = _SEARCH_PARAM.get(sp.get("key", ""))
+                if sp_key:
+                    if sp.get("type") == "equals":
+                        params.append((sp_key, str(sp["value"])))
+                    elif sp.get("type") == "in":
+                        for v in sp.get("values", []):
+                            params.append((sp_key, str(v)))
         elif ptype == "within":
             params.append(("geometry", p["geometry"]))
         elif ptype in _RANGE_OPS:

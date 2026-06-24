@@ -24,7 +24,6 @@ from .country_filter import CountryFilterSection
 from .geometry_filter import GeometryFilterSection
 from .predicate import build_predicate, format_predicate_summary, predicate_to_search_params
 from .polygon_tool import PolygonTool
-from .taxon_filter import HigherTaxonFilterSection
 from .dataset_filter import DatasetFilterSection
 from .institution_filter import InstitutionFilterSection
 from .scientific_name_filter import ScientificNameFilterSection
@@ -48,10 +47,11 @@ class DisclaimerDialog(QDialog):
         layout.addWidget(agreement_title)
 
         agreement_body = QLabel(
-            "By downloading this data, you acknowledge that you have read and accepted "
-            "the terms of the data use agreement."
+            'By downloading this data, you acknowledge that you have read and accepted '
+            'the terms of the <a href="https://www.gbif.org/terms/data-user">data use agreement</a>.'
         )
         agreement_body.setWordWrap(True)
+        agreement_body.setOpenExternalLinks(True)
         layout.addWidget(agreement_body)
 
         self._cb_agreement = QCheckBox(
@@ -68,12 +68,13 @@ class DisclaimerDialog(QDialog):
         layout.addWidget(citation_title)
 
         citation_body = QLabel(
-            "By downloading this data, you agree to:\n"
-            "•  follow the citation guidelines for GBIF-mediated data\n"
-            "•  always include the DOI assigned to the download when citing or "
-            "referring to the data in any publication"
+            'By downloading this data, you agree to:<br>'
+            '•  follow the <a href="https://www.gbif.org/citation-guidelines#occDataDownload">citation guidelines</a> for GBIF-mediated data<br>'
+            '•  always include the DOI assigned to the download when citing or '
+            'referring to the data in any publication'
         )
         citation_body.setWordWrap(True)
+        citation_body.setOpenExternalLinks(True)
         layout.addWidget(citation_body)
 
         self._cb_citation = QCheckBox(
@@ -124,14 +125,11 @@ class ActionTab(QWidget, FORM_CLASS):
         self._taxon_filter = ScientificNameFilterSection()
         self._params_layout.insertRow(0, self._taxon_filter)
 
-        self._higher_taxon_section = HigherTaxonFilterSection()
-        self._params_layout.insertRow(1, self._higher_taxon_section)
-
         self._dataset_section = DatasetFilterSection()
-        self._params_layout.insertRow(2, self._dataset_section)
+        self._params_layout.insertRow(1, self._dataset_section)
 
         self._institution_section = InstitutionFilterSection()
-        self._params_layout.insertRow(3, self._institution_section)
+        self._params_layout.insertRow(2, self._institution_section)
 
         self._params_layout.removeRow(self.basis_combo)
         self._basis_section = CheckboxFilterSection(
@@ -150,13 +148,13 @@ class ActionTab(QWidget, FORM_CLASS):
             columns=2,
             description="Basis of record, as defined in our BasisOfRecord vocabulary.",
         )
-        self._params_layout.insertRow(4, self._basis_section)
+        self._params_layout.insertRow(3, self._basis_section)
 
         self._country_section = CountryFilterSection()
-        self._params_layout.insertRow(5, self._country_section)
+        self._params_layout.insertRow(4, self._country_section)
 
         self._year_section = YearFilterSection()
-        self._params_layout.insertRow(6, self._year_section)
+        self._params_layout.insertRow(5, self._year_section)
 
         self._coord_uncertainty_section = NumericRangeFilterSection(
             "Coordinate uncertainty",
@@ -172,7 +170,7 @@ class ActionTab(QWidget, FORM_CLASS):
                 "the Location. Supports range queries."
             ),
         )
-        self._params_layout.insertRow(7, self._coord_uncertainty_section)
+        self._params_layout.insertRow(6, self._coord_uncertainty_section)
 
         self._elevation_section = NumericRangeFilterSection(
             "Elevation",
@@ -184,7 +182,7 @@ class ActionTab(QWidget, FORM_CLASS):
             default_to=1000,
             description="Elevation (altitude) in metres above sea level. Supports range queries.",
         )
-        self._params_layout.insertRow(8, self._elevation_section)
+        self._params_layout.insertRow(7, self._elevation_section)
 
         self._month_section = CheckboxFilterSection(
             "Month",
@@ -196,7 +194,7 @@ class ActionTab(QWidget, FORM_CLASS):
             columns=4,
             description="The ordinal month in which the event occurred.",
         )
-        self._params_layout.insertRow(9, self._month_section)
+        self._params_layout.insertRow(8, self._month_section)
 
         self._conservation_section = CheckboxFilterSection(
             "Conservation status (IUCN)",
@@ -214,13 +212,13 @@ class ActionTab(QWidget, FORM_CLASS):
             columns=2,
             description="The IUCN Red List Category of the taxon at the time of the occurrence.",
         )
-        self._params_layout.insertRow(10, self._conservation_section)
+        self._params_layout.insertRow(9, self._conservation_section)
 
         self._params_layout.removeRow(self.format_combo)
         self._params_layout.removeRow(self.polygon_row)
         self._geometry_section = GeometryFilterSection(self._iface)
         self._geometry_section.set_draw_handlers(self._toggle_draw, self._stop_draw)
-        self._params_layout.insertRow(11, self._geometry_section)
+        self._params_layout.insertRow(10, self._geometry_section)
 
         self._estimate_manager = QNetworkAccessManager(self)
         self._estimate_reply = None
@@ -232,7 +230,6 @@ class ActionTab(QWidget, FORM_CLASS):
 
         for section in (
             self._taxon_filter,
-            self._higher_taxon_section,
             self._dataset_section,
             self._institution_section,
             self._basis_section,
@@ -339,7 +336,6 @@ class ActionTab(QWidget, FORM_CLASS):
 
     def _clear_all_filters(self):
         self._taxon_filter._clear()
-        self._higher_taxon_section._clear()
         self._dataset_section._clear()
         self._institution_section._clear()
         self._basis_section._clear_all()
@@ -352,16 +348,12 @@ class ActionTab(QWidget, FORM_CLASS):
         self._stop_draw()
         self._geometry_section.clear_geometry()
 
-    def _get_higher_taxon_filter(self):
-        return self._higher_taxon_section.get_selected()
-
     def _on_filter_changed(self):
         self._estimate_timer.start()
 
     def _estimate(self):
         predicate = build_predicate(
-            taxon=self._taxon_filter.get_selected(),
-            higher_taxon=self._get_higher_taxon_filter(),
+            taxa=self._taxon_filter.get_selected(),
             dataset=self._dataset_section.get_selected(),
             institution=self._institution_section.get_selected(),
             country=self._get_country_filter(),
@@ -420,7 +412,6 @@ class ActionTab(QWidget, FORM_CLASS):
     def _submit(self):
         has_filter = any([
             self._taxon_filter.get_selected(),
-            self._get_higher_taxon_filter(),
             self._dataset_section.get_selected(),
             self._institution_section.get_selected(),
             self._get_country_filter(),
@@ -444,8 +435,7 @@ class ActionTab(QWidget, FORM_CLASS):
             return
 
         predicate = build_predicate(
-            taxon=self._taxon_filter.get_selected(),
-            higher_taxon=self._get_higher_taxon_filter(),
+            taxa=self._taxon_filter.get_selected(),
             dataset=self._dataset_section.get_selected(),
             institution=self._institution_section.get_selected(),
             country=self._get_country_filter(),

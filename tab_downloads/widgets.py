@@ -129,7 +129,14 @@ class DetailDialog(DETAIL_BASE_CLASS, DETAIL_FORM_CLASS):
         self.records_label.setText(f"{int(total):,}" if total is not None else "-")
 
         datasets = data.get("numberDatasets")
-        self.datasets_label.setText(f"{int(datasets):,}" if datasets is not None else "-")
+        if datasets is not None and int(datasets) > 0:
+            export_url = f"https://api.gbif.org/v1/occurrence/download/{key}/datasets/export?format=TSV"
+            self.datasets_label.setText(
+                f'{int(datasets):,} &nbsp;<a href="{export_url}">Download TSV</a>'
+            )
+            self.datasets_label.setOpenExternalLinks(True)
+        else:
+            self.datasets_label.setText(f"{int(datasets):,}" if datasets is not None else "-")
 
         self.size_label.setText(_fmt_size(data.get("size")))
 
