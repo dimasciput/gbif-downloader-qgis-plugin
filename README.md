@@ -16,7 +16,6 @@ highlighted; the live occurrence count updates automatically as filters change.
 | Filter | Type |
 |---|---|
 | Scientific name | Autocomplete (GBIF species suggest) |
-| Higher taxonomy | Autocomplete with rank selector (Family / Order / Class) |
 | Dataset | Autocomplete (GBIF dataset suggest) |
 | Institution | Autocomplete (GBIF institution suggest) |
 | Basis of record | Checkboxes (9 options) |

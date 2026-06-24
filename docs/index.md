@@ -54,7 +54,6 @@ The **Query** tab contains collapsible filter sections. Enable any combination o
 | Filter | Description |
 |---|---|
 | Scientific name | Autocomplete search against the GBIF species backbone |
-| Higher taxonomy | Filter by Family, Order, Class, Phylum, or Kingdom |
 | Dataset / Institution | Limit to a specific GBIF dataset or publishing institution |
 | Basis of record | Observation, Preserved specimen, Machine observation, etc. |
 | Country | Country of occurrence |
