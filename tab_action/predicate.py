@@ -6,6 +6,7 @@ from qgis.core import (
     QgsWkbTypes,
 )
 
+from ..gbif_api import COL_CHECKLIST_KEY
 from .countries import COUNTRIES
 from .dataset_filter import Dataset
 from .institution_filter import Institution
@@ -93,9 +94,15 @@ def build_predicate(
         sub = []
         if keyed:
             if len(keyed) == 1:
-                sub.append({"type": "equals", "key": "TAXON_KEY", "value": keyed[0].key})
+                sub.append({
+                    "type": "equals", "key": "TAXON_KEY",
+                    "value": keyed[0].key, "checklistKey": COL_CHECKLIST_KEY,
+                })
             else:
-                sub.append({"type": "in", "key": "TAXON_KEY", "values": [t.key for t in keyed]})
+                sub.append({
+                    "type": "in", "key": "TAXON_KEY",
+                    "values": [t.key for t in keyed], "checklistKey": COL_CHECKLIST_KEY,
+                })
         for t in unkeyed:
             sub.append({"type": "equals", "key": "SCIENTIFIC_NAME", "value": t.name})
         if len(sub) == 1:
@@ -242,6 +249,7 @@ def predicate_to_search_params(predicate: dict) -> list[tuple[str, str]]:
     """Convert a download predicate to occurrence search API query parameters."""
     params: list[tuple[str, str]] = []
     ranges: dict[str, dict] = {}
+    checklist_keys: set[str] = set()
 
     for p in predicate.get("predicates", []):
         ptype = p.get("type")
@@ -251,10 +259,14 @@ def predicate_to_search_params(predicate: dict) -> list[tuple[str, str]]:
         if ptype == "equals":
             if search_key:
                 params.append((search_key, str(p["value"])))
+            if key == "TAXON_KEY" and p.get("checklistKey"):
+                checklist_keys.add(p["checklistKey"])
         elif ptype == "in":
             if search_key:
                 for v in p.get("values", []):
                     params.append((search_key, str(v)))
+            if key == "TAXON_KEY" and p.get("checklistKey"):
+                checklist_keys.add(p["checklistKey"])
         elif ptype == "or":
             for sp in p.get("predicates", []):
                 sp_key = _SEARCH_PARAM.get(sp.get("key", ""))
@@ -264,6 +276,8 @@ def predicate_to_search_params(predicate: dict) -> list[tuple[str, str]]:
                     elif sp.get("type") == "in":
                         for v in sp.get("values", []):
                             params.append((sp_key, str(v)))
+                if sp.get("key") == "TAXON_KEY" and sp.get("checklistKey"):
+                    checklist_keys.add(sp["checklistKey"])
         elif ptype == "within":
             params.append(("geometry", p["geometry"]))
         elif ptype in _RANGE_OPS:
@@ -271,6 +285,9 @@ def predicate_to_search_params(predicate: dict) -> list[tuple[str, str]]:
                 side = _RANGE_OPS[ptype]
                 ranges.setdefault(key, {})["search_key"] = search_key
                 ranges.setdefault(key, {})[side] = str(p["value"])
+
+    for ck in checklist_keys:
+        params.append(("checklistKey", ck))
 
     for range_vals in ranges.values():
         search_key = range_vals["search_key"]

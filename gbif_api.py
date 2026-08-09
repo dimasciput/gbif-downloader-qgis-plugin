@@ -4,13 +4,20 @@ https://techdocs.gbif.org/en/openapi/v1/occurrence#/Occurrence%20downloads
 """
 
 import json
+import logging
 import urllib.request
 import urllib.error
 import urllib.parse
 from base64 import b64encode
 
 _BASE = "https://api.gbif.org/v1"
+_BASE_V2 = "https://api.gbif.org/v2"
 _AUTH_CFG_SETTINGS_KEY = "gbif_downloader/auth_config_id"
+
+# The COL XR checklist key on GBIF ChecklistBank.
+COL_CHECKLIST_KEY = "7ddf754f-d193-4cc9-b351-99906754a03b"
+
+logger = logging.getLogger(__name__)
 
 
 def _urlopen(req, timeout: int):
@@ -99,21 +106,56 @@ def test_credentials(username: str, password: str) -> tuple[bool, str]:
         return False, str(exc)
 
 
+def find_species(original_species_name: str, rank: str | None = None) -> dict | None:
+    """COL-based species lookup using the GBIF v2 species/match endpoint.
+
+    Returns the full COL match response dict (containing a ``usage`` key) or None.
+    """
+    logger.info("Find species (COL): %s", original_species_name)
+    params: dict = {
+        "checklistKey": COL_CHECKLIST_KEY,
+        "scientificName": original_species_name,
+    }
+    if rank:
+        params["rank"] = rank.upper()
+
+    url = f"{_BASE_V2}/species/match?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    try:
+        with _urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception as exc:
+        logger.warning("COL match error for %s: %s", original_species_name, exc)
+        return None
+
+    if not data or (data.get("diagnostics") or {}).get("matchType") == "NONE":
+        logger.info("No COL match for %s", original_species_name)
+        return None
+    if "usage" not in data:
+        return None
+
+    return data
+
+
 def submit_predicate_download(
     username: str,
     password: str,
     predicate: dict,
     fmt: str = "SIMPLE_CSV",
     send_notification: bool = True,
+    checklist_key: str | None = COL_CHECKLIST_KEY,
 ) -> str:
     """Submit a predicate-based download request. Returns the download key."""
     url = f"{_BASE}/occurrence/download/request"
-    body = json.dumps({
+    payload: dict = {
         "creator": username,
         "sendNotification": send_notification,
         "format": fmt,
         "predicate": predicate,
-    }).encode()
+    }
+    if checklist_key:
+        payload["checklistKey"] = checklist_key
+    body = json.dumps(payload).encode()
     headers = {
         **_auth_header(username, password),
         "Content-Type": "application/json",

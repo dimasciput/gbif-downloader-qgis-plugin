@@ -5,8 +5,11 @@ from qgis.PyQt.QtGui import QStandardItem, QStandardItemModel
 from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from qgis.PyQt.QtWidgets import QCompleter, QLineEdit, QListWidget, QListWidgetItem, QPushButton
 
+from ..gbif_api import COL_CHECKLIST_KEY
 from .accordion import ACTION_BTN_STYLE, AccordionSection
 from .taxon_filter import AutocompleteNameDelegate
+
+_COL_MATCH_URL = "https://api.gbif.org/v2/species/match"
 
 
 class Taxon:
@@ -137,8 +140,8 @@ class ScientificNameFilterSection(AccordionSection):
         if not name or any(t.name == name for t in self._selected):
             QTimer.singleShot(0, self._edit.clear)
             return
-        key = self._suggestion_keys.get(name, "")
-        self._selected.append(Taxon(name, key))
+        taxon = Taxon(name, "")
+        self._selected.append(taxon)
         item = QListWidgetItem(name)
         item.setData(Qt.UserRole, name)
         self._selected_list.addItem(item)
@@ -146,6 +149,28 @@ class ScientificNameFilterSection(AccordionSection):
         QTimer.singleShot(0, self._edit.clear)
         self._update_active()
         self.filter_changed.emit()
+        self._fetch_col_key(taxon)
+
+    def _fetch_col_key(self, taxon: "Taxon") -> None:
+        url = QUrl(_COL_MATCH_URL)
+        params = QUrlQuery()
+        params.addQueryItem("checklistKey", COL_CHECKLIST_KEY)
+        params.addQueryItem("scientificName", taxon.name)
+        url.setQuery(params)
+        request = QNetworkRequest(url)
+        request.setRawHeader(b"Accept", b"application/json")
+        reply = self._manager.get(request)
+        reply.finished.connect(lambda r=reply, t=taxon: self._on_col_reply(r, t))
+
+    def _on_col_reply(self, reply: QNetworkReply, taxon: "Taxon") -> None:
+        try:
+            if reply.error() != QNetworkReply.NoError:
+                return
+            data = json.loads(bytes(reply.readAll()).decode("utf-8"))
+            if data and "usage" in data:
+                taxon.key = str(data["usage"].get("key", ""))
+        finally:
+            reply.deleteLater()
 
     def _remove_selected(self):
         for item in self._selected_list.selectedItems():
