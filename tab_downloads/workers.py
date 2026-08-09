@@ -1,7 +1,10 @@
+import logging
 import os
 import shutil
 import tempfile
 import zipfile
+
+logger = logging.getLogger(__name__)
 
 from qgis.PyQt.QtCore import QThread, pyqtSignal
 
@@ -56,8 +59,8 @@ class PollWorker(QThread):
         for key in self._keys:
             try:
                 self.updated.emit(key, get_download(key))
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Failed to poll download %s: %s", key, exc)
 
 
 

@@ -1,6 +1,9 @@
 import hashlib
 import json
+import logging
 import pathlib
+
+logger = logging.getLogger(__name__)
 
 from qgis.core import QgsApplication
 
@@ -31,8 +34,8 @@ def load_all_cached() -> list[dict]:
             continue
         try:
             results.append(json.loads(detail_file.read_text(encoding="utf-8")))
-        except Exception:
-            pass
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning("Failed to read cache file %s: %s", detail_file, exc)
     return results
 
 
@@ -94,6 +97,6 @@ def load_cached_keys(keys: list) -> list[dict]:
         if detail.exists():
             try:
                 results.append(json.loads(detail.read_text(encoding="utf-8")))
-            except Exception:
-                pass
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning("Failed to read cache file %s: %s", detail, exc)
     return results

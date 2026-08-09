@@ -1,4 +1,7 @@
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import Qt, QTimer, QUrl, QUrlQuery, pyqtSignal
@@ -297,8 +300,8 @@ class ActionTab(QWidget, FORM_CLASS):
             try:
                 self._polygon_tool.polygon_captured.disconnect()
                 self._polygon_tool.deactivated.disconnect()
-            except Exception:
-                pass
+            except RuntimeError as exc:
+                logger.debug("Signal already disconnected: %s", exc)
             self._polygon_tool = None
         if self._prev_tool:
             canvas.setMapTool(self._prev_tool)
