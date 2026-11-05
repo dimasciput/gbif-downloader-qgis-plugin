@@ -156,8 +156,14 @@ class DownloadsTab(QWidget, FORM_CLASS):
         self.refresh()
 
     def refresh(self):
-        from ..gbif_api import get_credentials
-        username, _ = get_credentials()
+        from ..gbif_api import CredentialsLockedError, get_credentials
+        try:
+            username, _ = get_credentials()
+        except CredentialsLockedError as exc:
+            self.status_label.setText(f"{exc}\nClick Refresh to try again.")
+            self.status_label.setStyleSheet("color: orange;")
+            self._credentials_btn.show()
+            return
         if not username:
             self.status_label.setText(
                 "No GBIF credentials configured.\n"

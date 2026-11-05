@@ -16,6 +16,8 @@ class Taxon:
     def __init__(self, name: str, key: str):
         self.name = name
         self.key = key
+        self.pending = False  # COL key lookup in flight
+        self.unmatched = False  # COL lookup finished without a match
 
 
 class ScientificNameFilterSection(AccordionSection):
@@ -91,6 +93,7 @@ class ScientificNameFilterSection(AccordionSection):
         params = QUrlQuery()
         params.addQueryItem("q", query)
         params.addQueryItem("limit", "12")
+        params.addQueryItem("datasetKey", COL_CHECKLIST_KEY)
         url.setQuery(params)
         request = QNetworkRequest(url)
         request.setRawHeader(b"User-Agent", b"gbif-downloader-qgis-plugin/1.0")
@@ -152,6 +155,7 @@ class ScientificNameFilterSection(AccordionSection):
         self._fetch_col_key(taxon)
 
     def _fetch_col_key(self, taxon: "Taxon") -> None:
+        taxon.pending = True
         url = QUrl(_COL_MATCH_URL)
         params = QUrlQuery()
         params.addQueryItem("checklistKey", COL_CHECKLIST_KEY)
@@ -165,12 +169,20 @@ class ScientificNameFilterSection(AccordionSection):
     def _on_col_reply(self, reply: QNetworkReply, taxon: "Taxon") -> None:
         try:
             if reply.error() != QNetworkReply.NoError:
+                taxon.unmatched = True
                 return
             data = json.loads(bytes(reply.readAll()).decode("utf-8"))
             if data and "usage" in data:
                 taxon.key = str(data["usage"].get("key", ""))
+            if not taxon.key:
+                taxon.unmatched = True
+        except ValueError:
+            taxon.unmatched = True
         finally:
+            taxon.pending = False
             reply.deleteLater()
+            self.filter_changed.emit()
+            self._mark_unmatched()
 
     def _remove_selected(self):
         for item in self._selected_list.selectedItems():
@@ -187,6 +199,15 @@ class ScientificNameFilterSection(AccordionSection):
         self._model.clear()
         self._update_active()
         self.filter_changed.emit()
+
+    def _mark_unmatched(self):
+        for i, taxon in enumerate(self._selected):
+            item = self._selected_list.item(i)
+            if item is not None and taxon.unmatched:
+                item.setText(f"{taxon.name}  (no COL match – matched by name)")
+
+    def has_pending(self) -> bool:
+        return any(t.pending for t in self._selected)
 
     def _update_active(self):
         self.set_active(bool(self._selected))
