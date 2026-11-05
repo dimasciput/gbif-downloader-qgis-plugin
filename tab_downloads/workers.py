@@ -23,8 +23,12 @@ class FetchPageWorker(QThread):
         self._from_date = from_date
 
     def run(self):
-        from ..gbif_api import get_credentials, list_downloads
-        username, password = get_credentials()
+        from ..gbif_api import CredentialsLockedError, get_credentials, list_downloads
+        try:
+            username, password = get_credentials(prompt=False)
+        except CredentialsLockedError as exc:
+            self.error.emit(str(exc))
+            return
         if not username:
             self.error.emit(
                 "No GBIF credentials configured.\n"

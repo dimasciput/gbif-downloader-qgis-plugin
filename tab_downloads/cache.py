@@ -85,7 +85,8 @@ def load_page_cache(
         return None
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read cached detail %s: %s", path, exc)
         return None
 
 

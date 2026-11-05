@@ -20,6 +20,10 @@ COL_CHECKLIST_KEY = "7ddf754f-d193-4cc9-b351-99906754a03b"
 logger = logging.getLogger(__name__)
 
 
+class CredentialsLockedError(RuntimeError):
+    """Saved credentials exist but the QGIS auth database could not be read."""
+
+
 def _urlopen(req, timeout: int):
     """Open only HTTPS URLs; raises ValueError for any other scheme."""
     url = req.full_url if isinstance(req, urllib.request.Request) else req
@@ -33,8 +37,12 @@ def _auth_header(username: str, password: str) -> dict:
     return {"Authorization": f"Basic {token}", "Accept": "application/json"}
 
 
-def get_credentials() -> tuple[str, str]:
-    """Load username and password from the QGIS auth manager."""
+def get_credentials(prompt: bool = True) -> tuple[str, str]:
+    """Load username and password from the QGIS auth manager.
+
+    Pass ``prompt=False`` from worker threads: a master-password dialog must
+    only be shown from the GUI thread.
+    """
     from qgis.core import QgsApplication, QgsAuthMethodConfig, QgsSettings
 
     settings = QgsSettings()
@@ -42,9 +50,24 @@ def get_credentials() -> tuple[str, str]:
     if not cfg_id:
         return "", ""
 
+    auth_mgr = QgsApplication.authManager()
+    unlocked = auth_mgr.setMasterPassword(True) if prompt else auth_mgr.masterPasswordIsSet()
+    if not unlocked:
+        # Locked database: keep the saved ID, the user can retry
+        raise CredentialsLockedError(
+            "The QGIS authentication database is locked. "
+            "Enter the master password to access the saved GBIF credentials."
+        )
+
     config = QgsAuthMethodConfig()
-    ok = QgsApplication.authManager().loadAuthenticationConfig(cfg_id, config, full=True)
+    ok = auth_mgr.loadAuthenticationConfig(cfg_id, config, full=True)
     if not ok:
+        if cfg_id in auth_mgr.configIds():
+            # Config exists but could not be read (e.g. wrong master password)
+            raise CredentialsLockedError(
+                "The saved GBIF credentials could not be read from the QGIS "
+                "authentication database."
+            )
         # Stale ID — remove it so the user is prompted to re-enter credentials
         settings.remove(_AUTH_CFG_SETTINGS_KEY)
         return "", ""
@@ -53,10 +76,21 @@ def get_credentials() -> tuple[str, str]:
 
 
 def save_credentials(username: str, password: str) -> None:
-    """Persist credentials in the QGIS auth manager (encrypted)."""
+    """Persist credentials in the QGIS auth manager (encrypted).
+
+    Raises RuntimeError if the auth manager is unavailable (e.g. master
+    password not set/entered) or refuses to store the configuration.
+    """
     from qgis.core import QgsApplication, QgsAuthMethodConfig, QgsSettings
 
     auth_mgr = QgsApplication.authManager()
+    if not auth_mgr.setMasterPassword(True):
+        raise RuntimeError(
+            "The QGIS authentication database is locked. Enter the master "
+            "password (or set one under Settings > Options > Authentication) "
+            "and try again."
+        )
+
     settings = QgsSettings()
     cfg_id = settings.value(_AUTH_CFG_SETTINGS_KEY, "")
 
@@ -70,12 +104,20 @@ def save_credentials(username: str, password: str) -> None:
         # configIdUnique returns True when the ID is free (doesn't exist yet),
         # so False means it already exists — safe to update in place
         config.setId(cfg_id)
-        auth_mgr.updateAuthenticationConfig(config)
+        ok = auth_mgr.updateAuthenticationConfig(config)
     else:
         # No existing config or stale ID — create a fresh entry
         config.setId("")
-        auth_mgr.storeAuthenticationConfig(config)
-        settings.setValue(_AUTH_CFG_SETTINGS_KEY, config.id())
+        ok = auth_mgr.storeAuthenticationConfig(config)
+        # PyQGIS treats `mconfig` as an in/out parameter (SIP_INOUT), so the
+        # call returns (bool, updated_config). The updated copy carries the
+        # generated ID; the original object does not.
+        if isinstance(ok, tuple):
+            ok, config = ok
+
+    if not ok or not config.id():
+        raise RuntimeError("QGIS could not store the credentials in the authentication database.")
+    settings.setValue(_AUTH_CFG_SETTINGS_KEY, config.id())
 
 
 def delete_credentials() -> None:
@@ -102,7 +144,8 @@ def test_credentials(username: str, password: str) -> tuple[bool, str]:
         if exc.code == 401:
             return False, "Invalid username or password."
         return False, f"HTTP {exc.code}: {exc.reason}"
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - surfaced to the user as a message
+        logger.exception("Credential test failed")
         return False, str(exc)
 
 
@@ -124,7 +167,7 @@ def find_species(original_species_name: str, rank: str | None = None) -> dict | 
     try:
         with _urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
-    except Exception as exc:
+    except (urllib.error.URLError, ValueError, OSError) as exc:
         logger.warning("COL match error for %s: %s", original_species_name, exc)
         return None
 

@@ -406,7 +406,8 @@ class ActionTab(QWidget, FORM_CLASS):
                 size_str = f"~{size_gb * 1000:.0f} MB"
             self.status_label.setText(f"~{count:,} occurrences  •  {size_str}")
             self.status_label.setStyleSheet("color: grey;")
-        except Exception:
+        except (ValueError, AttributeError, TypeError):
+            logger.exception("Could not parse occurrence count response")
             self.status_label.setText("Estimate failed - unexpected response.")
             self.status_label.setStyleSheet("color: red;")
         finally:
@@ -431,6 +432,15 @@ class ActionTab(QWidget, FORM_CLASS):
                 self,
                 "No Filters Applied",
                 "Please apply at least one filter before submitting a download request.",
+            )
+            return
+
+        if self._taxon_filter.has_pending():
+            QMessageBox.information(
+                self,
+                "Resolving taxa",
+                "Taxon names are still being matched against the COL checklist. "
+                "Please try again in a moment.",
             )
             return
 
@@ -465,6 +475,14 @@ class ActionTab(QWidget, FORM_CLASS):
 
         self.submit_btn.setEnabled(False)
         self._credentials_btn.hide()
+        # Unlock the auth database on the GUI thread (the worker cannot prompt).
+        from ..gbif_api import CredentialsLockedError, get_credentials
+        try:
+            get_credentials()
+        except CredentialsLockedError as exc:
+            QMessageBox.warning(self, "Credentials locked", str(exc))
+            return
+
         self.status_label.setText("Submitting…")
         self.status_label.setStyleSheet("color: grey;")
 

@@ -48,10 +48,14 @@ class CredentialsDialog(QDialog, FORM_CLASS):
         if not self._test_passed:
             return
         from .gbif_api import save_credentials
-        save_credentials(
-            self.username_edit.text().strip(),
-            self.password_edit.text(),
-        )
+        try:
+            save_credentials(
+                self.username_edit.text().strip(),
+                self.password_edit.text(),
+            )
+        except RuntimeError as exc:
+            QMessageBox.warning(self, "Could not save credentials", str(exc))
+            return
         self.accept()
 
     def _logout(self):
